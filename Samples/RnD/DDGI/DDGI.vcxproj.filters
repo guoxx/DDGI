@@ -2,8 +2,26 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
+    <ClCompile Include="HybridRenderer.cpp" />
+    <ClCompile Include="HybridRendererControls.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DDGI.h" />
+    <Filter Include="Data">
+      <UniqueIdentifier>{568100f5-73ac-45da-8bf6-1f1b37c395e5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\ApplyAO.ps.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\DepthPass.ps.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\ForwardRenderer.slang">
+      <Filter>Data</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HybridRenderer.h" />
   </ItemGroup>
 </Project>

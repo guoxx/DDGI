@@ -133,6 +133,8 @@ float4 calcColor(float2 texC)
     return float4(luminance, 0, 0, 1);
 #elif defined _CLAMP
     return color;
+#elif defined _FIXED
+    return color * gExposureKey;
 #elif defined _LINEAR
     return float4(linearToneMap(exposedColor), color.a);
 #elif defined _REINHARD

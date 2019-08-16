@@ -705,6 +705,7 @@ namespace Falcor
 
     void CascadedShadowMaps::renderScene(RenderContext* pCtx)
     {
+        GPU_EVENT(pCtx, "shadowMapPass");
         ConstantBuffer* pCB = mShadowPass.pGraphicsVars->getDefaultBlock()->getConstantBuffer(mPerLightCbLoc, 0).get();
         check_offset(globalMat);
         check_offset(cascadeScale[0]);
@@ -731,6 +732,7 @@ namespace Falcor
 
     void CascadedShadowMaps::executeDepthPass(RenderContext* pCtx, const Camera* pCamera)
     {
+        GPU_EVENT(pCtx, "csmDepthPass");
         // Must have an FBO attached, otherwise don't know the size of the depth map
         const auto& pStateFbo = pCtx->getGraphicsState()->getFbo();
         uint32_t width, height;
@@ -779,6 +781,7 @@ namespace Falcor
             pDepthBuffer = mDepthPass.pState->getFbo()->getDepthStencilTexture();
         }
 
+        GPU_EVENT(pRenderCtx, "csmDepthReduction");
         createSdsmData(pDepthBuffer);
         vec2 distanceRange = glm::vec2(mSdsmData.minMaxReduction->reduce(pRenderCtx, pDepthBuffer));
 
@@ -845,10 +848,19 @@ namespace Falcor
         
         if(mCsmData.filterMode == CsmFilterVsm || mCsmData.filterMode == CsmFilterEvsm2 || mCsmData.filterMode == CsmFilterEvsm4)
         {
-            mpGaussianBlur->execute(pRenderCtx, mShadowPass.pFbo->getColorTexture(0), mShadowPass.pFbo);
-            mShadowPass.pFbo->getColorTexture(0)->generateMips(pRenderCtx);
+            {
+                GPU_EVENT(pRenderCtx, "filterShadowMap");
+                mpGaussianBlur->execute(pRenderCtx, mShadowPass.pFbo->getColorTexture(0), mShadowPass.pFbo);
+            }
+            {
+                GPU_EVENT(pRenderCtx, "shadowMapMips");
+                mShadowPass.pFbo->getColorTexture(0)->generateMips(pRenderCtx);
+            }
         }
         pRenderCtx->popGraphicsState();
+
+
+        GPU_EVENT(pRenderCtx, "visibilityBuffer");
 
         // Clear visibility buffer
         auto pFbo = mVisibilityPass.pState->getFbo().get();

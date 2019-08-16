@@ -31,6 +31,9 @@
 #include "API/Device.h"
 #include "API/DescriptorSet.h"
 
+#define USE_PIX
+#include "WinPixEventRuntime/pix3.h"
+
 namespace Falcor
 {
     void ComputeContext::prepareForDispatch()
@@ -114,5 +117,15 @@ namespace Falcor
         prepareForDispatch();
         resourceBarrier(argBuffer, Resource::State::IndirectArg);
         mpLowLevelData->getCommandList()->ExecuteIndirect(spDispatchCommandSig, 1, argBuffer->getApiHandle(), argBufferOffset, nullptr, 0);
+    }
+
+    void ComputeContext::pushGpuEvent(const char* formatString) const
+    {
+        PIXBeginEvent(mpLowLevelData->getCommandList().GetInterfacePtr(), PIX_COLOR_DEFAULT, formatString);
+    }
+
+    void ComputeContext::popGpuEvent() const
+    {
+        PIXEndEvent(mpLowLevelData->getCommandList().GetInterfacePtr());
     }
 }

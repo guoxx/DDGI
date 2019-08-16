@@ -102,6 +102,10 @@ namespace Falcor
         /** Submit the command list
         */
         virtual void flush(bool wait = false) override;
+
+        void pushGpuEvent(const char* formatString) const;
+        void popGpuEvent() const;
+
     protected:
         ComputeContext();
         void prepareForDispatch();
@@ -120,4 +124,21 @@ namespace Falcor
         static CommandSignatureHandle spDispatchCommandSig;
     };
 
+    class ScopedGpuEvent
+    {
+        void * operator new(size_t size) = delete;
+
+    public:
+        ScopedGpuEvent(const ComputeContext* ctx, const char* name) : m_ctx(ctx)
+        {
+            m_ctx->pushGpuEvent(name);
+        }
+        ~ScopedGpuEvent()
+        {
+            m_ctx->popGpuEvent();
+        }
+    private:
+        const ComputeContext* m_ctx;
+    };
+    #define GPU_EVENT(ctx, name) Falcor::ScopedGpuEvent _scopedGpuEvent##__LINE__(ctx, name);
 }

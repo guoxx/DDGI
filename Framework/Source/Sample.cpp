@@ -332,6 +332,10 @@ namespace Falcor
     {
         if((mShowUI != UIStatus::HideAll) || gProfileEnabled)
         {
+            PROFILE("renderGUI");
+            RenderContext* pContext = getRenderContext();
+            GPU_EVENT(pContext, "renderGUI");
+
             mpGui->beginFrame();
 
             constexpr char help[] =
@@ -431,7 +435,7 @@ namespace Falcor
                 mpGui->setActiveFont("");
             }
 
-            mpGui->render(getRenderContext(), mFrameRate.getLastFrameTime());
+            mpGui->render(pContext, mFrameRate.getLastFrameTime());
         }
     }
 
@@ -508,7 +512,6 @@ namespace Falcor
             mpDefaultPipelineState->setFbo(pSwapChainFbo);
             pCtx->setGraphicsState(mpDefaultPipelineState);
             {
-                PROFILE("renderGUI");
                 renderGUI();
             }
 

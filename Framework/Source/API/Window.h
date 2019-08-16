@@ -44,8 +44,8 @@ namespace Falcor
         */
         struct Desc
         {
-            uint32_t width = 1920;                  ///< The width of the client area size
-            uint32_t height = 1080;                 ///< The height of the client area size
+            uint32_t width = 1280;                  ///< The width of the client area size
+            uint32_t height = 720;                 ///< The height of the client area size
             bool fullScreen = false;                ///< Set to true to run the sample in full-screen mode
             std::string title = "Falcor Sample";    ///< Window title
             bool resizableWindow = true;            ///< Allow the user to resize the window.

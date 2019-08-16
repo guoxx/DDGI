@@ -1,5 +1,5 @@
 /***************************************************************************
-# Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,16 +25,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-#include "HybridRenderer.h"
+__import Helpers;
 
-int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
+SamplerState gSampler;
+
+Texture2D gColor;
+Texture2D gAOMap;
+
+float4 main(float2 texC : TEXCOORD) : SV_TARGET0
 {
-    ::LoadLibraryA("C:\\bin\\RenderDoc_1.4_64\\renderdoc.dll");
-
-    HybridRenderer::UniquePtr pRenderer = std::make_unique<HybridRenderer>();
-    SampleConfig config;
-    config.windowDesc.title = "Falcor Project Template";
-    config.windowDesc.resizableWindow = true;
-    Sample::run(config, pRenderer);
-    return 0;
+    return applyAmbientOcclusion(gColor.SampleLevel(gSampler, texC, 0), gAOMap, gSampler, texC);
 }

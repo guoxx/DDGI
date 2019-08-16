@@ -30,6 +30,7 @@ robocopy %ExternalsSourceDirectory%\OptiX\bin64 %DestinationDirectory%  *.dll /r
 robocopy %ExternalsSourceDirectory%\openvr\bin\win64 %DestinationDirectory%  openvr_api.dll /r:0 >nul
 robocopy %ExternalsSourceDirectory%\Slang\bin\windows-x64\release %DestinationDirectory%  *.dll /r:0 >nul
 robocopy %ExternalsSourceDirectory%\GLFW\lib %DestinationDirectory%  *.dll /r:0 >nul
+robocopy %ExternalsSourceDirectory%\winpixeventruntime\bin\x64 %DestinationDirectory%  *.dll /r:0 >nul
 call %1\BuildScripts\moveprojectdata.bat %1\Source\ %DestinationDirectory%
 call %1\BuildScripts\moveprojectdata.bat %3 %DestinationDirectory% /r:0 >nul
 

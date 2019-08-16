@@ -12,14 +12,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="DDGI.h" />
+    <ClCompile Include="HybridRenderer.cpp" />
+    <ClCompile Include="HybridRendererControls.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Framework\Source\Falcor.vcxproj">
       <Project>{3b602f0e-3834-4f73-b97d-7dfc91597a98}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HybridRenderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\ApplyAO.ps.slang" />
+    <None Include="Data\DepthPass.ps.slang" />
+    <None Include="Data\ForwardRenderer.slang" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3373CF0E-C24A-4C74-87B6-59243DBA03E1}</ProjectGuid>

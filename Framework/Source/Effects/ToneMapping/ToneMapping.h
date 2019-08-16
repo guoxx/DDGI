@@ -58,6 +58,7 @@ namespace Falcor
             HejiHableAlu,       ///< John Hable's ALU approximation of Jim Heji's filmic operator
             HableUc2,           ///< John Hable's filmic tone-mapping used in Uncharted 2
             Aces,               ///< Aces Filmic Tone-Mapping
+            Fixed,              ///< Fixed exposure value setup manually
         };
 
         /** Create a new object
@@ -81,6 +82,8 @@ namespace Falcor
         /** Set a new operator. Triggers shader recompilation if operator has not been set on this instance before.
         */
         void setOperator(Operator op);
+
+        void setExposureValue(float exposureValue);
 
         /** Sets the middle-gray luminance used for normalizing each pixel's luminance. 
             Middle gray is usually in the range of [0.045, 0.72].
@@ -168,6 +171,7 @@ namespace Falcor
             float luminanceLod = 16; // Max possible LOD, will result in global operation
             float whiteScale = 11.2f;
         } mConstBufferData;
+        float mExposureValue = 0.0f;
 
         void createToneMapPass(Operator op);
         void createLuminancePass();

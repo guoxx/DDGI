@@ -42,7 +42,8 @@ namespace Falcor
     { (uint32_t)ToneMapping::Operator::ReinhardModified, "Modified Reinhard" }, 
     { (uint32_t)ToneMapping::Operator::HejiHableAlu, "Heji's approximation" },
     { (uint32_t)ToneMapping::Operator::HableUc2, "Uncharted 2" },
-    { (uint32_t)ToneMapping::Operator::Aces, "ACES" }
+    { (uint32_t)ToneMapping::Operator::Aces, "ACES" },
+    { (uint32_t)ToneMapping::Operator::Fixed, "Fixed" },
     };
 
     static const std::string kOperator = "operator";
@@ -170,6 +171,9 @@ namespace Falcor
         case Operator::Aces:
             mpToneMapPass->getProgram()->addDefine("_ACES");
             break;
+        case Operator::Fixed:
+            mpToneMapPass->getProgram()->addDefine("_FIXED");
+            break;
         default:
             should_not_get_here();
         }
@@ -203,16 +207,24 @@ namespace Falcor
                 createToneMapPass(mOperator);
             }
 
-            pGui->addFloatVar("Exposure Key", mConstBufferData.exposureKey, 0.0001f, 200.0f);
-            pGui->addFloatVar("Luminance LOD", mConstBufferData.luminanceLod, 0, 16, 0.025f);
-            //Only give option to change these if the relevant operator is selected
-            if (mOperator == Operator::ReinhardModified)
+            if (opIndex == (uint32_t)ToneMapping::Operator::Fixed)
             {
-                pGui->addFloatVar("White Luminance", mConstBufferData.whiteMaxLuminance, 0.1f, FLT_MAX, 0.2f);
+                pGui->addFloatVar("Exposure Value", mExposureValue, -10.0f, 10.0f, 0.1f);
+                setExposureValue(mExposureValue);
             }
-            else if (mOperator == Operator::HableUc2)
+            else
             {
-                pGui->addFloatVar("Linear White", mConstBufferData.whiteScale, 0, 100, 0.01f);
+                pGui->addFloatVar("Exposure Key", mConstBufferData.exposureKey, 0.0001f, 200.0f);
+                pGui->addFloatVar("Luminance LOD", mConstBufferData.luminanceLod, 0, 16, 0.025f);
+                //Only give option to change these if the relevant operator is selected
+                if (mOperator == Operator::ReinhardModified)
+                {
+                    pGui->addFloatVar("White Luminance", mConstBufferData.whiteMaxLuminance, 0.1f, FLT_MAX, 0.2f);
+                }
+                else if (mOperator == Operator::HableUc2)
+                {
+                    pGui->addFloatVar("Linear White", mConstBufferData.whiteScale, 0, 100, 0.01f);
+                }
             }
 
             if (uiGroup) pGui->endGroup();
@@ -225,6 +237,12 @@ namespace Falcor
         {
             createToneMapPass(op);
         }
+    }
+
+    void ToneMapping::setExposureValue(float EV)
+    {
+        mExposureValue = EV;
+        mConstBufferData.exposureKey = std::pow(2.0f, EV);
     }
 
     void ToneMapping::setExposureKey(float exposureKey)

@@ -3,6 +3,8 @@
             packageLocation="github.com/shader-slang/slang/releases/download/v${version}/slang-${version}-win64.zip"/>
     <remote name="github-slang-linux" type="https"
             packageLocation="github.com/shader-slang/slang/releases/download/v${version}/slang-${version}-linux-x86_64.zip"/>
+    <remote name="nuget-winpixeventruntime" type="https"
+            packageLocation="globalcdn.nuget.org/packages/winpixeventruntime.${version}.nupkg"/>
     <dependency name="openvr" linkPath="Framework/Externals/OpenVR">
         <package name="openvr" version="1.0.14" platforms="win"/>
         <package name="openvr" version="1.0.14-linux" platforms="linux"/>
@@ -46,5 +48,8 @@
     </dependency>
     <dependency name="pybind11" linkPath="Framework/Externals/pybind11">
         <package name="pybind11" version="2.2.4" />
+    </dependency>
+    <dependency name="winpixeventruntime" linkPath="Framework/Externals/winpixeventruntime">
+        <package name="winpixeventruntime" version="1.0.190604001" remotes="nuget-winpixeventruntime" platforms="win" />
     </dependency>
 </project>
