@@ -36,6 +36,9 @@ public:
     using SharedPtr = std::shared_ptr<GBufferRaster>;
 
     static SharedPtr create(const Dictionary& dict = {});
+    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h);
+
+    void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo);
 
     RenderPassReflection reflect() const override;
     void execute(RenderContext* pContext, const RenderData* pRenderData) override;
@@ -51,7 +54,6 @@ private:
 
     GraphicsState::SharedPtr                mpGraphicsState;
     SceneRenderer::SharedPtr                mpSceneRenderer;
-    Fbo::SharedPtr                          mpFbo;
     RasterizerState::CullMode               mCullMode = RasterizerState::CullMode::Back;
 
     // Rasterization resources

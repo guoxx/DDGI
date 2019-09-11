@@ -8,9 +8,6 @@
     <ClCompile Include="RenderPasses\TemporalAccumulation.cpp">
       <Filter>RenderPasses\TemporalAccumulation</Filter>
     </ClCompile>
-    <ClCompile Include="RenderPasses\GBufferRaster.cpp">
-      <Filter>RenderPasses\GBuffer</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PathTracer.h" />
@@ -20,19 +17,10 @@
     <ClInclude Include="RenderPasses\TemporalAccumulation.h">
       <Filter>RenderPasses\TemporalAccumulation</Filter>
     </ClInclude>
-    <ClInclude Include="RenderPasses\GBufferRaster.h">
-      <Filter>RenderPasses\GBuffer</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderPasses\GBuffer.h">
-      <Filter>RenderPasses\GBuffer</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="RenderPasses">
       <UniqueIdentifier>{b6a8a680-8843-4162-9110-beb7c61c98c3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="RenderPasses\GBuffer">
-      <UniqueIdentifier>{b2788f57-7ebf-40c0-b553-3102f2279bf9}</UniqueIdentifier>
     </Filter>
     <Filter Include="RenderPasses\GGXGlobalIllumination">
       <UniqueIdentifier>{90b33fce-7aa1-4ae1-be85-2bac5f88c8ce}</UniqueIdentifier>
@@ -43,9 +31,6 @@
     <Filter Include="Data">
       <UniqueIdentifier>{f060b8f2-6026-499b-9047-99d2ccba11e6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Data\GBuffer">
-      <UniqueIdentifier>{929740ec-b9db-4ac0-ba45-b444f34fc1c2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Data\GGXGlobalIllumination">
       <UniqueIdentifier>{8a6d968b-234a-4d7a-a6ba-3f78bc3e4018}</UniqueIdentifier>
     </Filter>
@@ -54,9 +39,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Data\RasterPrimary.slang">
-      <Filter>Data\GBuffer</Filter>
-    </None>
     <None Include="Data\Accumulate.slang">
       <Filter>Data\TemporalAccumulation</Filter>
     </None>

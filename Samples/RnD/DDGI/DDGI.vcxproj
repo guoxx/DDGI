@@ -13,7 +13,6 @@
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
-    <ClCompile Include="HybridRendererControls.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Framework\Source\Falcor.vcxproj">

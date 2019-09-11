@@ -27,6 +27,7 @@
 ***************************************************************************/
 #pragma once
 #include "Falcor.h"
+#include "Experimental/RenderPasses/GBufferRaster.h"
 
 using namespace Falcor;
 
@@ -42,6 +43,7 @@ public:
     void onDroppedFile(SampleCallbacks* pSample, const std::string& filename) override;
 
 private:
+    Fbo::SharedPtr mpGBufferFbo;
     Fbo::SharedPtr mpMainFbo;
     Fbo::SharedPtr mpDepthPassFbo;
     Fbo::SharedPtr mpResolveFbo;
@@ -79,6 +81,8 @@ private:
         GraphicsVars::SharedPtr pVars;
         GraphicsProgram::SharedPtr pProgram;
     } mDepthPass;
+
+    GBufferRaster::SharedPtr mpGBufferRaster;
 
     struct  
     {
@@ -135,6 +139,7 @@ private:
 
     void beginFrame(RenderContext* pContext, Fbo* pTargetFbo, uint64_t frameId);
     void endFrame(RenderContext* pContext);
+    void GBufferPass(RenderContext* pContext);
     void depthPass(RenderContext* pContext);
     void shadowPass(RenderContext* pContext);
     void renderSkyBox(RenderContext* pContext);

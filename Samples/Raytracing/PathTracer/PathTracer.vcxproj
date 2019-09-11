@@ -12,14 +12,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PathTracer.cpp" />
-    <ClCompile Include="RenderPasses\GBufferRaster.cpp" />
     <ClCompile Include="RenderPasses\GGXGlobalIllumination.cpp" />
     <ClCompile Include="RenderPasses\TemporalAccumulation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PathTracer.h" />
-    <ClInclude Include="RenderPasses\GBuffer.h" />
-    <ClInclude Include="RenderPasses\GBufferRaster.h" />
     <ClInclude Include="RenderPasses\GGXGlobalIllumination.h" />
     <ClInclude Include="RenderPasses\TemporalAccumulation.h" />
   </ItemGroup>
@@ -39,7 +36,6 @@
   <ItemGroup>
     <None Include="Data\GGXGICommon.slang" />
     <None Include="Data\GGXGIIndirectRay.slang" />
-    <None Include="Data\RasterPrimary.slang" />
     <None Include="Data\GGXGIShadowRay.slang" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

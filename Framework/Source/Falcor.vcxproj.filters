@@ -577,6 +577,9 @@
     <ClCompile Include="Effects\SSR\HZB.cpp">
       <Filter>Effects\SSR</Filter>
     </ClCompile>
+    <ClCompile Include="Experimental\RenderPasses\GBufferRaster.cpp">
+      <Filter>Experimental\RenderPasses</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Model\Animation.h">
@@ -2132,6 +2135,12 @@
     <ClInclude Include="Effects\SSR\HZB.h">
       <Filter>Effects\SSR</Filter>
     </ClInclude>
+    <ClInclude Include="Experimental\RenderPasses\GBuffer.h">
+      <Filter>Experimental\RenderPasses</Filter>
+    </ClInclude>
+    <ClInclude Include="Experimental\RenderPasses\GBufferRaster.h">
+      <Filter>Experimental\RenderPasses</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Externals">
@@ -2852,6 +2861,9 @@
     </None>
     <None Include="Data\Effects\HierarchicalZBuffer.slang">
       <Filter>Data\Effects</Filter>
+    </None>
+    <None Include="Data\RenderPasses\GBufferRaster.slang">
+      <Filter>Data\RenderPasses</Filter>
     </None>
   </ItemGroup>
 </Project>

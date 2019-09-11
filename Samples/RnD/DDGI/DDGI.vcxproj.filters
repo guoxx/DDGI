@@ -3,7 +3,6 @@
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
-    <ClCompile Include="HybridRendererControls.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Data">

@@ -27,7 +27,7 @@
 ***************************************************************************/
 #include "PathTracer.h"
 #include "RenderPasses/GGXGlobalIllumination.h"
-#include "RenderPasses/GBufferRaster.h"
+#include "Experimental/RenderPasses/GBufferRaster.h"
 #include "RenderPasses/TemporalAccumulation.h"
 
 void PathTracer::onGuiRender(SampleCallbacks* pCallbacks, Gui* pGui)
