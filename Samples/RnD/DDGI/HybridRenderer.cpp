@@ -144,6 +144,8 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     initShadowPass(pTargetFbo->getWidth(), pTargetFbo->getHeight());
     initSSAO();
     initAA(pSample);
+    initHZB(pTargetFbo->getWidth(), pTargetFbo->getHeight());
+    initSSR(pTargetFbo->getWidth(), pTargetFbo->getHeight());
 
     mControls[EnableReflections].enabled = pScene->getLightProbeCount() > 0;
     applyLightingProgramControl(ControlID::EnableReflections);
@@ -234,6 +236,21 @@ void HybridRenderer::initAA(SampleCallbacks* pSample)
     applyAaMode(pSample);
 }
 
+void HybridRenderer::initSSR(uint32_t windowWidth, uint32_t windowHeight)
+{
+    mSSR.pSSREffect = ScreenSpaceReflection::create();
+
+    Fbo::Desc fboDesc;
+    fboDesc.setColorTarget(0, ResourceFormat::RGBA32Float);
+    mSSR.pSSRFbo = FboHelper::create2D(windowWidth, windowHeight, fboDesc);
+}
+
+void HybridRenderer::initHZB(uint32_t windowWidth, uint32_t windowHeight)
+{
+    mHZB.pHZBEffect = HierarchicalZBuffer::create();
+    mHZB.pHZBTex = HierarchicalZBuffer::createHZBTexture(windowWidth, windowHeight);
+}
+
 void HybridRenderer::initPostProcess()
 {
     mpToneMapper = ToneMapping::create(ToneMapping::Operator::Fixed);
@@ -280,6 +297,31 @@ void HybridRenderer::endFrame(RenderContext* pContext)
 {
     GPU_EVENT(pContext, "endFrame");
     pContext->popGraphicsState();
+}
+
+void HybridRenderer::buildHZB(RenderContext* pContext)
+{
+    PROFILE("HZB");
+    GPU_EVENT(pContext, "HZB");
+    const Texture::SharedPtr pDepthTexture = mpResolveFbo->getDepthStencilTexture();
+    const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
+    mHZB.pHZBEffect->execute(pContext, pCamera, pDepthTexture, mHZB.pHZBTex);
+}
+
+void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
+{
+    if (mSSR.bEnableSSR)
+    {
+        PROFILE("SSR");
+        GPU_EVENT(pContext, "SSR");
+        Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
+        Texture::SharedPtr pNormal = mpResolveFbo->getColorTexture(1);
+        Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
+        const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
+        mSSR.pSSREffect->execute(pContext, pCamera, pColorIn, pDepth, mHZB.pHZBTex, pNormal, mSSR.pSSRFbo);
+
+        pContext->blit(mSSR.pSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
+    }
 }
 
 void HybridRenderer::toneMapping(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
@@ -419,6 +461,8 @@ void HybridRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarget
     GPU_EVENT(pContext, "postProcess");
 
     Fbo::SharedPtr pPostProcessDst = mControls[EnableSSAO].enabled ? mpPostProcessFbo : pTargetFbo;
+    buildHZB(pContext);
+    screenSpaceReflection(pContext, pPostProcessDst);
     toneMapping(pContext, pPostProcessDst);
     runTAA(pContext, pPostProcessDst); // This will only run if we are in TAA mode
     ambientOcclusion(pContext, pTargetFbo);
@@ -521,6 +565,11 @@ void HybridRenderer::onResizeSwapChain(SampleCallbacks* pSample, uint32_t width,
     Fbo::Desc fboDesc;
     fboDesc.setColorTarget(0, ResourceFormat::RGBA8UnormSrgb);
     mpPostProcessFbo = FboHelper::create2D(width, height, fboDesc);
+
+    Fbo::Desc ssrFboDesc = mSSR.pSSRFbo->getDesc();
+    mSSR.pSSRFbo = FboHelper::create2D(width, height, ssrFboDesc);
+
+    mHZB.pHZBTex = HierarchicalZBuffer::createHZBTexture(width, height);
 
     applyAaMode(pSample);
     mShadowPass.pCsm->onResize(width, height);

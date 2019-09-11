@@ -1,0 +1,126 @@
+#pragma once
+#include "Experimental/RenderGraph/RenderPass.h"
+#include "API/FBO.h"
+#include "Graphics/FullScreenPass.h"
+#include "Graphics/Program/ProgramVars.h"
+#include "Effects/SSR/HZB.h"
+#include "Utils/Gui.h"
+
+#define DEBUG_SSR
+
+namespace Falcor
+{
+    class Gui;
+    class Camera;
+
+    class ScreenSpaceReflection : public RenderPass, public inherit_shared_from_this<RenderPass, ScreenSpaceReflection>
+    {
+    public:
+        using SharedPtr = std::shared_ptr<ScreenSpaceReflection>;
+        static const char* kDesc;
+
+        /** Destructor
+        */
+        ~ScreenSpaceReflection();
+
+        /** Create a new instance
+        */
+        static SharedPtr create(const Dictionary& dict = {});
+
+        /** Render UI controls for this effect.
+            \param[in] pGui GUI object to render UI elements with
+        */
+        virtual void renderUI(Gui* pGui, const char* uiGroup = "") override;
+
+        /** Run the effect
+        */
+        void execute(RenderContext* pRenderContext,
+            const Camera* pCamera,
+            const Texture::SharedPtr& pColorIn,
+            const Texture::SharedPtr& pDepthTexture,
+            const Texture::SharedPtr& pHZBTexture,
+            const Texture::SharedPtr& pNormalTexture,
+            const Fbo::SharedPtr& pFbo);
+
+        // Render-pass stuff
+        virtual void execute(RenderContext* pContext, const RenderData* pData) override;
+        virtual RenderPassReflection reflect() const override;
+        std::string getDesc() override { return kDesc; }
+
+    private:
+        ScreenSpaceReflection();
+
+        void init();
+
+        void createGraphicsResources();
+
+        //  Set the Variable Data needed for Rendering.
+        void setVarsData(const Camera* pCamera,
+            const Texture::SharedPtr& pColorIn,
+            const Texture::SharedPtr& pDepthTexture,
+            const Texture::SharedPtr& pHZBTexture,
+            const Texture::SharedPtr& pNormalTexture);
+
+#ifdef DEBUG_SSR
+        void setupDebugFbo(RenderContext* pRenderContext, int32_t w, int32_t h);
+#endif
+
+        struct
+        {
+            ProgramReflection::BindLocation perFrameCB;
+#ifdef DEBUG_SSR
+            ProgramReflection::BindLocation debugCB;
+            ProgramReflection::BindLocation debugTex;
+            ProgramReflection::BindLocation debugData;
+#endif
+            ProgramReflection::BindLocation pointSampler;
+            ProgramReflection::BindLocation HZBTex;
+            ProgramReflection::BindLocation normalTex;
+            ProgramReflection::BindLocation colorTex;
+        } mBindLocations;
+
+        struct
+        {
+            glm::mat4x4 gInvProjMat;
+            glm::mat4x4 gViewMat;
+            glm::mat4x4 gProjToPixelMat;
+
+            glm::vec4 gZBufferSize;
+            glm::vec4 gHZBSize;
+
+            float gNearZ;
+            float gFarZ;
+            float gHZBMipCount;
+
+            float gZThickness = 0.05f;
+            float gRayStrideDDA = 1;
+            float gJitterFraction = 1;
+            float gMaxRayTraceDistance = 100;
+            float gMaxStepsHZB = 64;
+            float gMaxStepsDDA = 2048;
+        } mConstantData;
+
+        bool mHiZRayTrace = true;
+        GraphicsProgram::SharedPtr mpProgram;
+        GraphicsVars::SharedPtr mpProgVars;
+        GraphicsState::SharedPtr mpPipelineState;
+
+        Sampler::SharedPtr mpPointSampler;
+
+#ifdef DEBUG_SSR
+        static const Gui::DropdownList kDebugModeDropdown;
+
+        enum DebugMode
+        {
+            None,
+            DebugIntersectionResult,
+            DebugRaymarchCount,
+            DebugRayPath,
+        } mDebugMode = None;
+        glm::ivec2 mDebugPixel{-1, -1};
+
+        TypedBuffer<glm::vec4>::SharedPtr mpDebugData;
+        Fbo::SharedPtr mDebugFbo;
+#endif
+    };
+}

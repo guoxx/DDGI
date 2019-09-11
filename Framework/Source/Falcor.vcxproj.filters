@@ -571,6 +571,12 @@
       <Filter>Experimental\RenderGraph</Filter>
     </ClCompile>
     <ClCompile Include="UnitTest.cpp" />
+    <ClCompile Include="Effects\SSR\SSR.cpp">
+      <Filter>Effects\SSR</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\SSR\HZB.cpp">
+      <Filter>Effects\SSR</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Model\Animation.h">
@@ -2120,6 +2126,12 @@
     <ClInclude Include="Experimental\RenderGraph\ResourceCache.h">
       <Filter>Experimental\RenderGraph</Filter>
     </ClInclude>
+    <ClInclude Include="Effects\SSR\SSR.h">
+      <Filter>Effects\SSR</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\SSR\HZB.h">
+      <Filter>Effects\SSR</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Externals">
@@ -2328,6 +2340,9 @@
     </Filter>
     <Filter Include="Experimental\RenderGraph">
       <UniqueIdentifier>{60443751-4f7a-4361-adb2-d3e6edabecf8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Effects\SSR">
+      <UniqueIdentifier>{45dbf39c-1f3f-43b3-ae7f-bc949feee691}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -2831,6 +2846,12 @@
     </None>
     <None Include="..\Externals\GLM\glm\gtx\wrap.inl">
       <Filter>Externals\GLM\gtx</Filter>
+    </None>
+    <None Include="Data\Effects\ScreenSpaceReflection.slang">
+      <Filter>Data\Effects</Filter>
+    </None>
+    <None Include="Data\Effects\HierarchicalZBuffer.slang">
+      <Filter>Data\Effects</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -319,6 +319,8 @@
     <ClCompile Include="Effects\ParticleSystem\ParticleSystem.cpp" />
     <ClCompile Include="Effects\Shadows\CSM.cpp" />
     <ClCompile Include="Effects\SkyBox\SkyBox.cpp" />
+    <ClCompile Include="Effects\SSR\HZB.cpp" />
+    <ClCompile Include="Effects\SSR\SSR.cpp" />
     <ClCompile Include="Effects\TAA\TAA.cpp" />
     <ClCompile Include="Effects\ToneMapping\ToneMapping.cpp" />
     <ClCompile Include="Effects\Utils\GaussianBlur.cpp" />
@@ -941,6 +943,8 @@
     <ClInclude Include="Effects\ParticleSystem\ParticleSystem.h" />
     <ClInclude Include="Effects\Shadows\CSM.h" />
     <ClInclude Include="Effects\SkyBox\SkyBox.h" />
+    <ClInclude Include="Effects\SSR\HZB.h" />
+    <ClInclude Include="Effects\SSR\SSR.h" />
     <ClInclude Include="Effects\TAA\TAA.h" />
     <ClInclude Include="Effects\ToneMapping\ToneMapping.h" />
     <ClInclude Include="Effects\Utils\GaussianBlur.h" />
@@ -1277,6 +1281,7 @@
     <None Include="Data\Effects\DepthPass.slang" />
     <None Include="Data\Effects\FXAA.slang" />
     <None Include="Data\Effects\GaussianBlur.ps.slang" />
+    <None Include="Data\Effects\HierarchicalZBuffer.slang" />
     <None Include="Data\Effects\LeanMapping.slang" />
     <None Include="Data\Effects\ParticleConstColor.ps.slang" />
     <None Include="Data\Effects\ParticleEmit.cs.slang" />
@@ -1285,6 +1290,7 @@
     <None Include="Data\Effects\ParticleSort.cs.slang" />
     <None Include="Data\Effects\ParticleTexture.ps.slang" />
     <None Include="Data\Effects\ParticleVertex.vs.slang" />
+    <None Include="Data\Effects\ScreenSpaceReflection.slang" />
     <None Include="Data\Effects\ShadowPass.slang" />
     <None Include="Data\Effects\SkyBox.slang" />
     <None Include="Data\Effects\SSAO.ps.slang" />

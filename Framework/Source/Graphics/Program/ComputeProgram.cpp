@@ -30,14 +30,20 @@
 
 namespace Falcor
 {
-    ComputeProgram::SharedPtr ComputeProgram::createFromFile(const std::string& filename, const std::string& csEntry, const DefineList& programDefines, Shader::CompilerFlags flags, const std::string& shaderModel)
+    ComputeProgram::SharedPtr ComputeProgram::create(const Desc& desc, const Program::DefineList& programDefines)
     {
         SharedPtr pProg = SharedPtr(new ComputeProgram);
+        pProg->init(desc, programDefines);
+        return pProg;
+
+    }
+
+    ComputeProgram::SharedPtr ComputeProgram::createFromFile(const std::string& filename, const std::string& csEntry, const DefineList& programDefines, Shader::CompilerFlags flags, const std::string& shaderModel)
+    {
         Desc d(filename);
         if (!shaderModel.empty()) d.setShaderModel(shaderModel);
         d.setCompilerFlags(flags);
         d.csEntry(csEntry);
-        pProg->init(d, programDefines);
-        return pProg;
+        return create(d, programDefines);
     }
 }

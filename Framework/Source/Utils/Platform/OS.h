@@ -312,6 +312,10 @@ namespace Falcor
     */
     uint32_t getLowerPowerOf2(uint32_t a);
 
+    /** Gets the closest power of two to a number, rounded up.
+    */
+    uint32_t getNextPowerOf2(uint32_t a);
+
     /** Gets the number of set bits.
     */
     uint32_t popcount(uint32_t a);

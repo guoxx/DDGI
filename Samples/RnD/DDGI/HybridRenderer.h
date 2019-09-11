@@ -80,6 +80,18 @@ private:
         GraphicsProgram::SharedPtr pProgram;
     } mDepthPass;
 
+    struct  
+    {
+        HierarchicalZBuffer::SharedPtr pHZBEffect;
+        Texture::SharedPtr pHZBTex;
+    } mHZB;
+
+    struct  
+    {
+        ScreenSpaceReflection::SharedPtr pSSREffect;
+        Fbo::SharedPtr pSSRFbo;
+        bool bEnableSSR = true;
+    } mSSR;
 
     //  The Temporal Anti-Aliasing Pass.
     class
@@ -131,6 +143,8 @@ private:
     void runTAA(RenderContext* pContext, Fbo::SharedPtr pColorFbo);
     void toneMapping(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void ambientOcclusion(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void buildHZB(RenderContext* pContext);
+    void screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void postProcess(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
 
 
@@ -145,6 +159,8 @@ private:
     void initSSAO();
     void updateLightProbe(const LightProbe::SharedPtr& pLight);
     void initAA(SampleCallbacks* pSample);
+    void initSSR(uint32_t windowWidth, uint32_t windowHeight);
+    void initHZB(uint32_t windowWidth, uint32_t windowHeight);
 
     void initControls();
 
@@ -195,7 +211,7 @@ private:
     };
 
     float mOpacityScale = 0.5f;
-    AAMode mAAMode = AAMode::TAA;
+    AAMode mAAMode = AAMode::None;
     SamplePattern mTAASamplePattern = SamplePattern::Halton;
     void applyAaMode(SampleCallbacks* pSample);
     std::vector<ProgramControl> mControls;

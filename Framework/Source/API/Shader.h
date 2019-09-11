@@ -142,16 +142,28 @@ namespace Falcor
 
         enum class CompilerFlags
         {
-            None                        = 0x0,
-            TreatWarningsAsErrors       = 0x1,
-            DumpIntermediates           = 0x2,
-            FloatingPointModeFast       = 0x4,
-            FloatingPointModePrecise    = 0x8,
+            None                        = 0x00,
+            TreatWarningsAsErrors       = 0x01 << 0,
+            DumpIntermediates           = 0x01 << 1,
+            FloatingPointModeFast       = 0x01 << 2,
+            FloatingPointModePrecise    = 0x01 << 3,
+            EmitDebugInfo               = 0x01 << 4,
+        };
+
+        enum class OptimizationLevel
+        {
+            None    = 0,
+            Default = 1,
+            High    = 2,
+            Maximal = 3,
         };
 
         class DefineList : public std::map<std::string, std::string>
         {
         public:
+            using Base = std::map<std::string, std::string>;
+            using Base::Base;
+
             /** Adds a macro definition. If the macro already exists, it will be replaced.
                 \param[in] name The name of macro.
                 \param[in] value Optional. The value of the macro.

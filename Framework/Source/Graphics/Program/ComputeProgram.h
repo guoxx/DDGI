@@ -40,6 +40,14 @@ namespace Falcor
         ~ComputeProgram() = default;
 
         /** Create a new program object.
+            \param[in] desc Description of the source files and entry points to use.
+            \return A new object, or nullptr if creation failed.
+
+            Note that this call merely creates a program object. The actual compilation and link happens when calling Program#getActiveVersion().
+        */
+        static SharedPtr create(const Desc& desc, const Program::DefineList& programDefines = DefineList());
+
+        /** Create a new program object.
             \param[in] filename Compute shader filename. Can also include a full path or relative path from a data directory.
             \param[in] programDefines A list of macro definitions to set into the shader
             \return A new object, or nullptr if creation failed.

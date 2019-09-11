@@ -107,6 +107,7 @@ namespace Falcor
             // Apply jitter matrix to the projection matrix
             mViewProjMatNoJitter = mData.projMat * mData.viewMat;
             mData.projMat = jitterMat * mData.projMat;
+            mData.invProj = glm::inverse(mData.projMat);
 
             mData.viewProjMat = mData.projMat * mData.viewMat;
             mData.invViewProj = glm::inverse(mData.viewProjMat);

@@ -477,6 +477,12 @@ namespace Falcor
         slangFlags |= SLANG_COMPILE_FLAG_NO_CHECKING | SLANG_COMPILE_FLAG_SPLIT_MIXED_TYPES;
         spSetCompileFlags(slangRequest, slangFlags);
 
+        if (is_set(mDesc.getCompilerFlags(), Shader::CompilerFlags::EmitDebugInfo))
+        {
+            spSetDebugInfoLevel(slangRequest, SLANG_DEBUG_INFO_LEVEL_STANDARD);
+        }
+        spSetOptimizationLevel(slangRequest, (SlangOptimizationLevel)mDesc.getOptimizationLevel());
+
         // Now lets add all our input shader code, one-by-one
         int translationUnitsAdded = 0;
 

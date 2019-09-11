@@ -70,6 +70,7 @@ struct CameraData
 {
     float4x4 viewMat;               ///< Camera view matrix.
     float4x4 projMat;               ///< Camera projection matrix.
+    float4x4 invProj;               ///< Camera inverse projection matrix.
     float4x4 viewProjMat;           ///< Camera view-projection matrix.
     float4x4 invViewProj;           ///< Camera inverse view-projection matrix.
     float4x4 prevViewProjMat;       ///< Camera view-projection matrix associated to previous frame. No jittering is applied!

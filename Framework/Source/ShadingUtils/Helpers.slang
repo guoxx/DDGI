@@ -345,4 +345,75 @@ float rand_next(inout uint s)
     s = (LCG_A * s + LCG_C);
     return float(s & 0x00FFFFFF) / float(0x01000000);
 }
+
+/*******************************************************************
+   	3D Math
+*******************************************************************/  
+float depthToLinearZ(float depth, float4x4 mProj)
+{
+    /*
+        mProj = [[m11,   0,   0,   0],
+                 [  0, m22,   0,   0],
+                 [  0,   0, m22, m23],
+                 [  0,   0, m32,   0]]
+        m23 is -1 for right hand coordinate, 1 for left hand
+
+        depth = (m22 * z + m32) / (m23 * z)
+        depth * m23 = m22 + m32 / z
+        z = m32 / (depth * m23 - m22)
+    */
+
+    float m22 = mProj[2][2];
+    float m23 = mProj[2][3];
+    float m32 = mProj[3][2];
+    float z = m32 / (depth * m23 - m22);
+    return z;
+}
+
+float4 reconstructPositionFromDepth(float depthVal, float2 uv, float4x4 mInvProj)
+{
+    float4 tmp;
+    tmp.x = uv.x * 2.0f - 1.0f;
+    tmp.y = (1.0f - uv.y) * 2.0f - 1.0f;
+#ifdef FALCOR_VK
+    // NDC space is inverted
+    tmp.y = -pos.y;
+#endif
+    tmp.z = depthVal;
+    tmp.w = 1.0f;
+
+    float4 pos = mul(tmp, mInvProj);
+    pos /= pos.w;
+
+    return pos;
+}
+
+float4 reconstructPositionFromDepth(Texture2D depthTex, SamplerState texSampler, float2 uv, float4x4 mInvProj)
+{
+    float z = depthTex.SampleLevel(texSampler, uv, 0).r;
+    return reconstructPositionFromDepth(z, uv, mInvProj);
+}
+
+float3 reflect(float3 Wi, float3 N)
+{
+    return 2 * dot(Wi, N) * N - Wi;
+}
+
+// Assume P0 is within the rect (P1 - P0 is never zero when clipping)
+// Result can be used as lerp(P0, P1, alpha)
+float clipLineByRect(float2 P0, float2 P1, float4 rect)
+{
+    float xMin = rect.x, yMin = rect.y, xMax = rect.z, yMax = rect.w;
+    float alpha = 0.0;
+
+    // Assume P0 is in the viewport (P1 - P0 is never zero when clipping)
+    if ((P1.y > yMax) || (P1.y < yMin))
+        alpha = (P1.y - ((P1.y > yMax) ? yMax : yMin)) / (P1.y - P0.y);
+
+    if ((P1.x > xMax) || (P1.x < xMin))
+        alpha = max(alpha, (P1.x - ((P1.x > xMax) ? xMax : xMin)) / (P1.x - P0.x));
+
+    return 1 - alpha;
+}
+
 #endif //_FALCOR_HELPERS_SLANG_

@@ -53,12 +53,25 @@ namespace Falcor
         return 1 << bitScanReverse(a);
     }
 
+    uint32_t getNextPowerOf2(uint32_t v)
+    {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v++;
+        return v;
+    }
+
     std::vector<std::string> gDataDirectories =
     {
         // Ordering matters here, we want that while developing, resources will be loaded from the development media directory
         std::string(getWorkingDirectory()),
         std::string(getWorkingDirectory() + "/Data"),
         std::string(_PROJECT_DIR_) + "/ShadingUtils",
+        std::string(_PROJECT_DIR_) + "/Data",
         std::string(getExecutableDirectory()),
         std::string(getExecutableDirectory() + "/Data"),
 

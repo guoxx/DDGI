@@ -302,6 +302,14 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 
         mpToneMapper->renderUI(pGui, "Tone-Mapping");
 
+        if (pGui->beginGroup("SSR"))
+        {
+            pGui->addCheckBox("Enable SSR", mSSR.bEnableSSR);
+            mSSR.pSSREffect->renderUI(pGui);
+
+            pGui->endGroup();
+        }
+
         if (pGui->beginGroup("Shadows"))
         {
             if (pGui->addCheckBox("Enable Shadows", mControls[ControlID::EnableShadows].enabled))

@@ -143,6 +143,7 @@
 #include "Effects/ParticleSystem/ParticleSystem.h"
 #include "Effects/TAA/TAA.h"
 #include "Effects/FXAA/FXAA.h"
+#include "Effects/SSR/SSR.h"
 
 #define FALCOR_MAJOR_VERSION 3
 #define FALCOR_MINOR_VERSION 2
