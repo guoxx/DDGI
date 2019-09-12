@@ -25,37 +25,43 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-import Shading;
-import DefaultVS;
+#pragma once
+#include "Falcor.h"
 
-struct GBufferOut
+using namespace Falcor;
+
+class GBufferLightingPass : public RenderPass, inherit_shared_from_this<RenderPass, GBufferLightingPass>
 {
-    float4 posW             : SV_TARGET0;
-    float4 normW            : SV_TARGET1;
-    float4 bitangentW       : SV_TARGET2;
-    float4 texC             : SV_TARGET3;
-    float4 diffuseOpacity   : SV_TARGET4;
-    float4 specRough        : SV_TARGET5;
-    float4 emissive         : SV_TARGET6;
-    float4 matlExtra        : SV_TARGET7;
+public:
+    using SharedPtr = std::shared_ptr<GBufferLightingPass>;
+
+    static SharedPtr create(const Dictionary& dict = {});
+
+    void execute(RenderContext* pContext, const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture, const Fbo::SharedPtr& pTargetFbo);
+
+    RenderPassReflection reflect() const override;
+    void execute(RenderContext* pContext, const RenderData* pRenderData) override;
+    void renderUI(Gui* pGui, const char* uiGroup) override;
+    Dictionary getScriptingDictionary() const override;
+    void onResize(uint32_t width, uint32_t height) override;
+    void setScene(const Scene::SharedPtr& pScene) override;
+    std::string getDesc(void) override { return "GBuffer lighting"; }
+private:
+    GBufferLightingPass();
+    bool parseDictionary(const Dictionary& dict);
+
+    void setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture);
+
+    Scene::SharedConstPtr mpScene;
+    ConstantBuffer::SharedPtr mpInternalPerFrameCB;
+    struct
+    {
+        int32_t cameraDataOffset;
+        int32_t lightArrayOffset;
+        int32_t lightCountOffset;
+    } mOffsetInCB;
+
+    GraphicsState::SharedPtr mpState;
+    GraphicsProgram::SharedPtr mpProgram;
+    GraphicsVars::SharedPtr mpVars;
 };
-
-/** Entry point for G-buffer rasterization pixel shader.
-*/
-GBufferOut ps(VertexOut vsOut)
-{
-    ShadingData sd = prepareShadingData(vsOut, gMaterial, gCamera.posW);
-
-    GBufferOut gOut;
-    gOut.posW           = float4(sd.posW, 1.f);
-    gOut.normW          = float4(sd.N * 0.5 + 0.5, 0.f);
-    gOut.bitangentW     = float4(sd.B * 0.5 + 0.5, 0.f);
-    gOut.texC           = float4(sd.uv, 0.f, 0.f);
-
-    gOut.diffuseOpacity = float4(sd.diffuse, sd.opacity);
-    gOut.specRough      = float4(sd.specular, sd.linearRoughness);
-    gOut.emissive       = float4(sd.emissive, 0.f);
-    gOut.matlExtra      = float4(normalize(vsOut.normalW) * 0.5 + 0.5, 0.f);
-
-    return gOut;
-}

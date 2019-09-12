@@ -28,6 +28,7 @@
 #pragma once
 #include "Experimental/RenderGraph/RenderPass.h"
 #include "API/Sampler.h"
+#include "API/Texture.h"
 
 namespace Falcor
 {
@@ -40,6 +41,8 @@ namespace Falcor
         /** Create a new object
         */
         static SharedPtr create(const Dictionary& dict = {});
+
+        void execute(RenderContext* pContext, Texture::SharedPtr pSrcTex, Texture::SharedPtr pDstTex);
 
         virtual RenderPassReflection reflect() const override;
         virtual void execute(RenderContext* pContext, const RenderData* pRenderData) override;

@@ -580,6 +580,9 @@
     <ClCompile Include="Experimental\RenderPasses\GBufferRaster.cpp">
       <Filter>Experimental\RenderPasses</Filter>
     </ClCompile>
+    <ClCompile Include="Experimental\RenderPasses\GBufferLightingPass.cpp">
+      <Filter>Experimental\RenderPasses</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Model\Animation.h">
@@ -2141,6 +2144,9 @@
     <ClInclude Include="Experimental\RenderPasses\GBufferRaster.h">
       <Filter>Experimental\RenderPasses</Filter>
     </ClInclude>
+    <ClInclude Include="Experimental\RenderPasses\GBufferLightingPass.h">
+      <Filter>Experimental\RenderPasses</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Externals">
@@ -2863,6 +2869,9 @@
       <Filter>Data\Effects</Filter>
     </None>
     <None Include="Data\RenderPasses\GBufferRaster.slang">
+      <Filter>Data\RenderPasses</Filter>
+    </None>
+    <None Include="Data\RenderPasses\GBufferLightingPass.slang">
       <Filter>Data\RenderPasses</Filter>
     </None>
   </ItemGroup>

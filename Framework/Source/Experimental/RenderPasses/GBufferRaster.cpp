@@ -67,7 +67,7 @@ GBufferRaster::SharedPtr GBufferRaster::create(const Dictionary& dict)
     return pPass->parseDictionary(dict) ? pPass : nullptr;
 }
 
-Fbo::SharedPtr GBufferRaster::createGBufferFbo(int32_t w, int32_t h)
+Fbo::SharedPtr GBufferRaster::createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil)
 {
     Fbo::Desc desc;
     RenderPassReflection r;
@@ -75,7 +75,10 @@ Fbo::SharedPtr GBufferRaster::createGBufferFbo(int32_t w, int32_t h)
     {
         desc.setColorTarget(i, ResourceFormat::RGBA32Float);
     }
-    desc.setDepthStencilTarget(ResourceFormat::D32Float);
+    if (hasDepthStencil)
+    {
+        desc.setDepthStencilTarget(ResourceFormat::D32Float);
+    }
     return FboHelper::create2D(w, h, desc);
 }
 
@@ -88,8 +91,6 @@ Dictionary GBufferRaster::getScriptingDictionary() const
 
 GBufferRaster::GBufferRaster() : RenderPass("GBufferRaster")
 {
-    mpGraphicsState = GraphicsState::create();
-
     mRaster.pProgram = GraphicsProgram::createFromFile(kFileRasterPrimary, "", "ps");
 
     // Initialize graphics state
@@ -106,7 +107,7 @@ void GBufferRaster::onResize(uint32_t width, uint32_t height)
 {
 }
 
-void GBufferRaster::setScene(const std::shared_ptr<Scene>& pScene)
+void GBufferRaster::setScene(const Scene::SharedPtr& pScene)
 {
     mpSceneRenderer = (pScene == nullptr) ? nullptr : SceneRenderer::create(pScene);
 }

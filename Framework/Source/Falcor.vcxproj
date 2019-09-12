@@ -380,6 +380,7 @@
     <ClCompile Include="Experimental\RenderPasses\BlitPass.cpp" />
     <ClCompile Include="Experimental\RenderPasses\DepthPass.cpp" />
     <ClCompile Include="Experimental\RenderPasses\ForwardLightingPass.cpp" />
+    <ClCompile Include="Experimental\RenderPasses\GBufferLightingPass.cpp" />
     <ClCompile Include="Experimental\RenderPasses\GBufferRaster.cpp" />
     <ClCompile Include="Experimental\RenderPasses\ImageLoader.cpp" />
     <ClCompile Include="Experimental\RenderPasses\ResolvePass.cpp" />
@@ -1014,6 +1015,7 @@
     <ClInclude Include="Experimental\RenderPasses\DepthPass.h" />
     <ClInclude Include="Experimental\RenderPasses\ForwardLightingPass.h" />
     <ClInclude Include="Experimental\RenderPasses\GBuffer.h" />
+    <ClInclude Include="Experimental\RenderPasses\GBufferLightingPass.h" />
     <ClInclude Include="Experimental\RenderPasses\GBufferRaster.h" />
     <ClInclude Include="Experimental\RenderPasses\ImageLoader.h" />
     <ClInclude Include="Experimental\RenderPasses\ResolvePass.h" />
@@ -1313,6 +1315,7 @@
     <None Include="Data\Framework\Shaders\TextRenderer.slang" />
     <None Include="Data\HostDeviceData.slang" />
     <None Include="Data\RenderPasses\ForwardLightingPass.slang" />
+    <None Include="Data\RenderPasses\GBufferLightingPass.slang" />
     <None Include="Data\RenderPasses\GBufferRaster.slang" />
     <None Include="Data\ShaderCommon.slang" />
     <None Include="ShadingUtils\BRDF.slang" />

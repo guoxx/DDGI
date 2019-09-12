@@ -27,7 +27,10 @@
 ***************************************************************************/
 #pragma once
 #include "Falcor.h"
+#include "Experimental/RenderPasses/BlitPass.h"
+#include "Experimental/RenderPasses/DepthPass.h"
 #include "Experimental/RenderPasses/GBufferRaster.h"
+#include "Experimental/RenderPasses/GBufferLightingPass.h"
 
 using namespace Falcor;
 
@@ -58,13 +61,6 @@ private:
     };
     ShadowPass mShadowPass;
 
-    //  SkyBox Pass.
-    struct
-    {
-        SkyBox::SharedPtr pEffect;
-        DepthStencilState::SharedPtr pDS;
-        Sampler::SharedPtr pSampler;
-    } mSkyBox;
 
     //  Lighting Pass.
     struct
@@ -76,13 +72,11 @@ private:
         BlendState::SharedPtr pAlphaBlendBS;
     } mLightingPass;
 
-    struct
-    {
-        GraphicsVars::SharedPtr pVars;
-        GraphicsProgram::SharedPtr pProgram;
-    } mDepthPass;
-
+    SkyBox::SharedPtr mpSkyPass;
+    DepthPass::SharedPtr mpDepthPass;
     GBufferRaster::SharedPtr mpGBufferRaster;
+    GBufferLightingPass::SharedPtr mpGBufferLightingPass;
+    BlitPass::SharedPtr mpBlitPass;
 
     struct  
     {
@@ -139,11 +133,12 @@ private:
 
     void beginFrame(RenderContext* pContext, Fbo* pTargetFbo, uint64_t frameId);
     void endFrame(RenderContext* pContext);
-    void GBufferPass(RenderContext* pContext);
-    void depthPass(RenderContext* pContext);
-    void shadowPass(RenderContext* pContext);
-    void renderSkyBox(RenderContext* pContext);
-    void lightingPass(RenderContext* pContext, Fbo* pTargetFbo);
+    void GBufferPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void deferredLightingPass(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo);
+    void depthPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture, Texture::SharedPtr* visibilityTexture);
+    void renderSkyBox(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void lightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void executeFXAA(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void runTAA(RenderContext* pContext, Fbo::SharedPtr pColorFbo);
     void toneMapping(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
@@ -152,14 +147,9 @@ private:
     void screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void postProcess(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
 
-
-    void renderOpaqueObjects(RenderContext* pContext);
-    void renderTransparentObjects(RenderContext* pContext);
-
     void initSkyBox(const std::string& name);
     void initPostProcess();
     void initLightingPass();
-    void initDepthPass();
     void initShadowPass(uint32_t windowWidth, uint32_t windowHeight);
     void initSSAO();
     void updateLightProbe(const LightProbe::SharedPtr& pLight);
@@ -215,6 +205,12 @@ private:
         FXAA
     };
 
+    enum class RenderPath
+    {
+        Deferred = 0,
+        Forward
+    };
+
     float mOpacityScale = 0.5f;
     AAMode mAAMode = AAMode::None;
     SamplePattern mTAASamplePattern = SamplePattern::Halton;
@@ -222,10 +218,10 @@ private:
     std::vector<ProgramControl> mControls;
     void applyLightingProgramControl(ControlID controlID);
 
+    RenderPath mRenderPath = RenderPath::Deferred;
     bool mUseCameraPath = true;
     void applyCameraPathState();
     bool mPerMaterialShader = false;
-    bool mEnableDepthPass = true;
     bool mUseCsSkinning = false;
     void applyCsSkinningMode();
     static const std::string skDefaultScene;

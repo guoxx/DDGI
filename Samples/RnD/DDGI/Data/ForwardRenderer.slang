@@ -108,7 +108,7 @@ PsOut ps(MainVsOut vOut, float4 pixelCrd : SV_POSITION)
     finalColor.rgb += sd.diffuse * sd.lightMap.rgb;
 
     psOut.color = finalColor;
-    psOut.normal = float4(vOut.vsData.normalW * 0.5f + 0.5f, 1.0f);
+    psOut.normal = float4(sd.N * 0.5f + 0.5f, 1.0f);
 
 #ifdef _OUTPUT_MOTION_VECTORS
     psOut.motion = calcMotionVector(pixelCrd.xy, vOut.vsData.prevPosH, gRenderTargetDim);

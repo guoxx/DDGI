@@ -89,6 +89,21 @@ namespace Falcor
         }
     }
 
+    void DepthPass::execute(RenderContext* pContext, const Fbo::SharedPtr& pTargetFbo)
+    {
+        if (mpSceneRenderer)
+        {
+            mpState->pushFbo(pTargetFbo);
+            pContext->pushGraphicsState(mpState);
+            pContext->pushGraphicsVars(mpVars);
+            pContext->clearDsv(pTargetFbo->getDepthStencilView().get(), 1, 0);
+            mpSceneRenderer->renderScene(pContext);
+            pContext->popGraphicsState();
+            pContext->popGraphicsVars();
+            mpState->popFbo();
+        }
+    }
+
     void DepthPass::execute(RenderContext* pContext, const RenderData* pData)
     {
         if(mpSceneRenderer)
@@ -96,13 +111,7 @@ namespace Falcor
             const auto& pDepth = pData->getTexture(kDepth);
             mpFbo->attachDepthStencilTarget(pDepth);
 
-            mpState->setFbo(mpFbo);
-            pContext->pushGraphicsState(mpState);
-            pContext->pushGraphicsVars(mpVars);
-            pContext->clearDsv(pDepth->getDSV().get(), 1, 0);
-            mpSceneRenderer->renderScene(pContext);
-            pContext->popGraphicsState();
-            pContext->popGraphicsVars();
+            execute(pContext, mpFbo);
         }
     }
 

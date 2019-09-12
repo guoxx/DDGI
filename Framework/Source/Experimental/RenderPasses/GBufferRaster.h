@@ -36,7 +36,7 @@ public:
     using SharedPtr = std::shared_ptr<GBufferRaster>;
 
     static SharedPtr create(const Dictionary& dict = {});
-    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h);
+    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil = true);
 
     void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo);
 
@@ -45,14 +45,13 @@ public:
     void renderUI(Gui* pGui, const char* uiGroup) override;
     Dictionary getScriptingDictionary() const override;
     void onResize(uint32_t width, uint32_t height) override;
-    void setScene(const std::shared_ptr<Scene>& pScene) override;
+    void setScene(const Scene::SharedPtr& pScene) override;
     std::string getDesc(void) override { return "Raster GBuffer generation"; }
 private:
     GBufferRaster();
     void setCullMode(RasterizerState::CullMode mode);
     bool parseDictionary(const Dictionary& dict);
 
-    GraphicsState::SharedPtr                mpGraphicsState;
     SceneRenderer::SharedPtr                mpSceneRenderer;
     RasterizerState::CullMode               mCullMode = RasterizerState::CullMode::Back;
 

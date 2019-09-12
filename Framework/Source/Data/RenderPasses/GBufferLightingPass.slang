@@ -1,5 +1,5 @@
 /***************************************************************************
-# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,30 +25,53 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-import ShaderCommon;
-import Shading;
-import Helpers;
-import GGXGICommon;
+__import ShaderCommon;
+__import Shading;
+__import Helpers;
+__import BRDF;
 
-[shader("raygeneration")]
-void GGXGlobalIllumRayGen()
+
+Texture2D gPosTex;
+Texture2D gNormTex;
+Texture2D gBitangentTex;
+Texture2D gTexCoordTex;
+Texture2D gDiffuseOpacityTex;
+Texture2D gSpecRoughTex;
+Texture2D gEmissiveTex;
+Texture2D gMatlExtraTex;
+
+Texture2D visibilityBuffer;
+
+struct VsOut
 {
-    uint2 launchIndex = DispatchRaysIndex().xy;
-    uint2 launchDim = DispatchRaysDimensions().xy;
+    float2 texC : TEXCOORD;
+    float4 pos : SV_POSITION;
+};
 
-    // Initialize our random number generator
-    uint randSeed = rand_init(launchIndex.x + launchIndex.y * launchDim.x, gFrameCount, 16);
+VsOut VSMain(uint id: SV_VertexID)
+{
+    VsOut vOut; 
+	vOut.texC = float2((id & 0x02) * 1.0, (id & 0x01) * 2.0);
+	vOut.pos = float4(vOut.texC * float2(2, -2) + float2(-1, 1), 0, 1);
+    return vOut;
+}
+
+float4 PSMain(VsOut pIn) : SV_TARGET0
+{
+    float4 pixelCrd = pIn.pos;
 
     // Load g-buffer data
-    float4 posW = gPos[launchIndex];
-    float3 normW = gNorm[launchIndex].xyz * 2 - 1;
-    float4 diffuse = gDiffuseMatl[launchIndex];
-    float4 specRough = gSpecMatl[launchIndex];
-    float4 emissive = gEmissive[launchIndex];
-    float3 geomN = gExtraMatl[launchIndex].xyz * 2 - 1;
+    float4 posW = gPosTex[pixelCrd.xy];
+    float3 normW = gNormTex[pixelCrd.xy].xyz * 2 - 1;
+    float4 diffuse = gDiffuseOpacityTex[pixelCrd.xy];
+    float4 specRough = gSpecRoughTex[pixelCrd.xy];
+    float4 emissive = gEmissiveTex[pixelCrd.xy];
+    float3 geomN = gMatlExtraTex[pixelCrd.xy].xyz * 2 - 1;
 
     // Does this g-buffer pixel contain a valid piece of geometry?  (0 in pos.w for invalid)
     bool isGeometryValid = (posW.w != 0.0f);
+    if (!isGeometryValid)
+        return float4(0, 0, 0, 1);
 
     // Extract and compute some material and geometric parameters
     float roughness = specRough.a * specRough.a;
@@ -60,34 +83,38 @@ void GGXGlobalIllumRayGen()
     // Make sure out geometric normal is pointed in the right direction
     if (dot(geomN, V) <= 0.0f) geomN = -geomN;
 
-    float3 shadeColor = float3(0, 0, 0);
+    // Fill out ShadingData struct with GBuffer data
+    ShadingData sd = initShadingData();
+    sd.posW = posW.xyz;
+    sd.N = normW;
+    sd.V = V;
+    sd.NdotV = dot(sd.N, sd.V);
+    sd.diffuse = diffuse.rgb;
+    sd.specular = specRough.rgb;
+    sd.linearRoughness = specRough.a;
+    sd.roughness = roughness;
+    sd.emissive = emissive.xyz;
 
-    // Do shading, if we have geometry here (otherwise, output the background color)
-    if (isGeometryValid)
+    float4 finalColor = float4(0, 0, 0, 1);
+
+    for (uint l = 0; l < gLightsCount; l++)
     {
-        // Add any emissive color from primary rays
-        shadeColor = gEmitMult * emissive.rgb;
-
-        // Fill out ShadingData struct with GBuffer data
-        ShadingData sd = initShadingData();
-        sd.posW = posW.xyz;
-        sd.N = normW;
-        sd.V = V;
-        sd.diffuse = diffuse.rgb;
-        sd.specular = specRough.rgb;
-        sd.linearRoughness = specRough.a;
-        sd.roughness = roughness;
-
-        // Direct lighting to a random light in the scene
-        if (gDoDirectGI) shadeColor += ggxDirect(randSeed, sd);
-
-        // Indirect lighting for global illumination
-        if (gDoIndirectGI && (gMaxDepth > 0)) shadeColor += ggxIndirect(randSeed, sd, geomN);
-
-        // Zero out any bad samples
-        bool colorsNan = any(isnan(shadeColor));
-        shadeColor = colorsNan ? float3(0, 0, 0) : shadeColor;
+        float shadowFactor = 1;
+        if (l == 0)
+        {
+            shadowFactor = visibilityBuffer.Load(int3(pixelCrd.xy, 0)).r;
+            shadowFactor *= sd.opacity;
+        }
+        finalColor.rgb += evalMaterial(sd, gLights[l], shadowFactor).color.rgb;
     }
-    
-    gOutput[launchIndex] = float4(shadeColor, 1.0f);
+
+    // Add the emissive component
+    finalColor.rgb += sd.emissive;
+    finalColor.a = sd.opacity;
+    finalColor.rgb += evalMaterial(sd, gLightProbe).color.rgb;
+
+    // Add light-map
+    finalColor.rgb += sd.diffuse * sd.lightMap.rgb;
+
+    return finalColor;
 }

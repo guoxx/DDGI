@@ -43,11 +43,11 @@ const Gui::DropdownList aaModeList =
     { 2, "FXAA" }
 };
 
-void HybridRenderer::initDepthPass()
+const Gui::DropdownList renderPathList =
 {
-    mDepthPass.pProgram = GraphicsProgram::createFromFile("DepthPass.ps.slang", "", "main");
-    mDepthPass.pVars = GraphicsVars::create(mDepthPass.pProgram->getReflector());
-}
+    { 0, "Deferred"},
+    { 1, "Forward"},
+};
 
 void HybridRenderer::initLightingPass()
 {
@@ -152,7 +152,10 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpSceneRenderer->toggleStaticMaterialCompilation(mPerMaterialShader);
     setSceneSampler(mpSceneSampler ? mpSceneSampler->getMaxAnisotropy() : 4);
     setActiveCameraAspectRatio(pSample->getCurrentFbo()->getWidth(), pSample->getCurrentFbo()->getHeight());
-    initDepthPass();
+
+    mpDepthPass = DepthPass::create();
+    mpDepthPass->setScene(pScene);
+
     initLightingPass();
     auto pTargetFbo = pSample->getCurrentFbo();
     initShadowPass(pTargetFbo->getWidth(), pTargetFbo->getHeight());
@@ -164,6 +167,11 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpGBufferRaster = GBufferRaster::create();
     mpGBufferRaster->setScene(pScene);
 
+    mpGBufferLightingPass = GBufferLightingPass::create();
+    mpGBufferLightingPass->setScene(pScene);
+
+    mpBlitPass = BlitPass::create();
+
     mControls[EnableReflections].enabled = pScene->getLightProbeCount() > 0;
     applyLightingProgramControl(ControlID::EnableReflections);
     
@@ -173,7 +181,7 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
 void HybridRenderer::resetScene()
 {
     mpSceneRenderer = nullptr;
-    mSkyBox.pEffect = nullptr;
+    mpSkyPass = nullptr;
 
     if (mpGBufferRaster)
     {
@@ -225,11 +233,8 @@ void HybridRenderer::initSkyBox(const std::string& name)
 {
     Sampler::Desc samplerDesc;
     samplerDesc.setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear);
-    mSkyBox.pSampler = Sampler::create(samplerDesc);
-    mSkyBox.pEffect = SkyBox::create(name, true, mSkyBox.pSampler);
-    DepthStencilState::Desc dsDesc;
-    dsDesc.setDepthFunc(DepthStencilState::Func::Always);
-    mSkyBox.pDS = DepthStencilState::create(dsDesc);
+    Sampler::SharedPtr pSampler = Sampler::create(samplerDesc);
+    mpSkyPass = SkyBox::create(name, true, pSampler);
 }
 
 void HybridRenderer::updateLightProbe(const LightProbe::SharedPtr& pLight)
@@ -286,15 +291,13 @@ void HybridRenderer::onLoad(SampleCallbacks* pSample, RenderContext* pRenderCont
     loadScene(pSample, skDefaultScene, true);
 }
 
-void HybridRenderer::renderSkyBox(RenderContext* pContext)
+void HybridRenderer::renderSkyBox(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
-    if (mSkyBox.pEffect)
+    if (mpSkyPass)
     {
         PROFILE("skyBox");
         GPU_EVENT(pContext, "skybox");
-        mpState->setDepthStencilState(mSkyBox.pDS);
-        mSkyBox.pEffect->render(pContext, mpSceneRenderer->getScene()->getActiveCamera().get());
-        mpState->setDepthStencilState(nullptr);
+        mpSkyPass->render(pContext, mpSceneRenderer->getScene()->getActiveCamera().get(), pTargetFbo);
     }
 }
 
@@ -353,35 +356,34 @@ void HybridRenderer::toneMapping(RenderContext* pContext, Fbo::SharedPtr pTarget
     mpToneMapper->execute(pContext, mpResolveFbo->getColorTexture(0), pTargetFbo);
 }
 
-void HybridRenderer::GBufferPass(RenderContext* pContext)
+void HybridRenderer::GBufferPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
     PROFILE("GBuffer");
     GPU_EVENT(pContext, "GBuffer");
-    mpGBufferRaster->execute(pContext, mpGBufferFbo);
+    mpGBufferRaster->execute(pContext, pTargetFbo);
 }
 
-void HybridRenderer::depthPass(RenderContext* pContext)
+void HybridRenderer::deferredLightingPass(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo)
 {
-    if (mEnableDepthPass == false) 
-    {
-        return;
-    }
+    PROFILE("Lighting");
+    GPU_EVENT(pContext, "Lighting");
+    mpGBufferLightingPass->execute(pContext, pGBufferFbo, visibilityTexture, pTargetFbo);
+}
 
+void HybridRenderer::depthPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
+{
     PROFILE("depthPass");
     GPU_EVENT(pContext, "depthPass");
-    mpState->setFbo(mpDepthPassFbo);
-    mpState->setProgram(mDepthPass.pProgram);
-    pContext->setGraphicsVars(mDepthPass.pVars);
-    
-    mpSceneRenderer->renderScene(pContext);
+    mpDepthPass->execute(pContext, pTargetFbo);
 }
 
-void HybridRenderer::lightingPass(RenderContext* pContext, Fbo* pTargetFbo)
+void HybridRenderer::lightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
     PROFILE("lightingPass");
     GPU_EVENT(pContext, "lightingPass");
+    mpState->setFbo(mpMainFbo);
     mpState->setProgram(mLightingPass.pProgram);
-    mpState->setDepthStencilState(mEnableDepthPass ? mLightingPass.pDsState : nullptr);
+    mpState->setDepthStencilState(mLightingPass.pDsState);
     pContext->setGraphicsVars(mLightingPass.pVars);
     ConstantBuffer::SharedPtr pCB = mLightingPass.pVars->getConstantBuffer("PerFrameCB");
     pCB["gOpacityScale"] = mOpacityScale;
@@ -398,44 +400,20 @@ void HybridRenderer::lightingPass(RenderContext* pContext, Fbo* pTargetFbo)
         pCB["gRenderTargetDim"] = glm::vec2(pTargetFbo->getWidth(), pTargetFbo->getHeight());
     }
 
-    if(mControls[EnableTransparency].enabled)
-    {
-        renderOpaqueObjects(pContext);
-        renderTransparentObjects(pContext);
-    }
-    else
-    {
-        mpSceneRenderer->renderScene(pContext);
-    }
+    mpSceneRenderer->renderScene(pContext);
     pContext->flush();
     mpState->setDepthStencilState(nullptr);
 }
 
-void HybridRenderer::renderOpaqueObjects(RenderContext* pContext)
-{
-    GPU_EVENT(pContext, "renderOpaqueObjects");
-    mpSceneRenderer->renderScene(pContext);
-}
-
-void HybridRenderer::renderTransparentObjects(RenderContext* pContext)
-{
-    GPU_EVENT(pContext, "renderTransparentObjects");
-    mpState->setBlendState(mLightingPass.pAlphaBlendBS);
-    mpState->setRasterizerState(mLightingPass.pNoCullRS);
-    mpSceneRenderer->renderScene(pContext);
-    mpState->setBlendState(nullptr);
-    mpState->setRasterizerState(nullptr);
-}
-
-void HybridRenderer::shadowPass(RenderContext* pContext)
+void HybridRenderer::shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture, Texture::SharedPtr* visibilityTexture)
 {
     PROFILE("shadowPass");
     GPU_EVENT(pContext, "shadowPass");
     if (mControls[EnableShadows].enabled && mShadowPass.updateShadowMap)
     {
-        mShadowPass.camVpAtLastCsmUpdate = mpSceneRenderer->getScene()->getActiveCamera()->getViewProjMatrix();
-        Texture::SharedPtr pDepth= mpDepthPassFbo->getDepthStencilTexture();
-        mShadowPass.pVisibilityBuffer = mShadowPass.pCsm->generateVisibilityBuffer(pContext, mpSceneRenderer->getScene()->getActiveCamera().get(), mEnableDepthPass ? pDepth : nullptr);
+        const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
+        mShadowPass.camVpAtLastCsmUpdate = pCamera->getViewProjMatrix();
+        *visibilityTexture = mShadowPass.pCsm->generateVisibilityBuffer(pContext, pCamera, pDepthTexture);
         pContext->flush();
     }
 }
@@ -520,12 +498,19 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             mpSceneRenderer->update(pSample->getCurrentTime());
         }
 
-        GBufferPass(pRenderContext);
-        depthPass(pRenderContext);
-        shadowPass(pRenderContext);
-        mpState->setFbo(mpMainFbo);
-        renderSkyBox(pRenderContext);
-        lightingPass(pRenderContext, pTargetFbo.get());
+        depthPass(pRenderContext, mpDepthPassFbo);
+        shadowPass(pRenderContext, mpDepthPassFbo->getDepthStencilTexture(), &mShadowPass.pVisibilityBuffer);
+        if (mRenderPath == RenderPath::Deferred)
+        {
+            GBufferPass(pRenderContext, mpGBufferFbo);
+            deferredLightingPass(pRenderContext, mpGBufferFbo, mShadowPass.pVisibilityBuffer, mpMainFbo);
+            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(1), mpMainFbo->getColorTexture(1));
+        }
+        else
+        {
+            lightingPass(pRenderContext, mpMainFbo);
+        }
+        renderSkyBox(pRenderContext, mpMainFbo);
         postProcess(pRenderContext, pTargetFbo);
 
         endFrame(pRenderContext);
@@ -650,12 +635,10 @@ void HybridRenderer::applyLightingProgramControl(ControlID controlId)
         if (add)
         {
             mLightingPass.pProgram->addDefine(control.define, control.value);
-            if (controlId == ControlID::EnableHashedAlpha) mDepthPass.pProgram->addDefine(control.define, control.value);
         }
         else
         {
             mLightingPass.pProgram->removeDefine(control.define);
-            if (controlId == ControlID::EnableHashedAlpha) mDepthPass.pProgram->removeDefine(control.define);
         }
     }
 }
@@ -686,9 +669,14 @@ void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
     uint32_t w = pSample->getCurrentFbo()->getWidth();
     uint32_t h = pSample->getCurrentFbo()->getHeight();
 
+    // Common Depth FBO, shared by depth pass, GBuffer pass and forward pass
+    Fbo::Desc depthFboDesc;
+    depthFboDesc.setDepthStencilTarget(ResourceFormat::D32Float);
+    mpDepthPassFbo = FboHelper::create2D(w, h, depthFboDesc);
+
     // Common FBO desc (2 color outputs - color and normal)
     Fbo::Desc fboDesc;
-    fboDesc.setColorTarget(0, ResourceFormat::RGBA32Float).setColorTarget(1, ResourceFormat::RGBA8Unorm).setDepthStencilTarget(ResourceFormat::D32Float);
+    fboDesc.setColorTarget(0, ResourceFormat::RGBA32Float).setColorTarget(1, ResourceFormat::RGBA8Unorm);
 
     // Release the TAA FBOs
     mTAA.resetFbos();
@@ -709,7 +697,6 @@ void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
         mpSceneRenderer->getScene()->getActiveCamera()->setPatternGenerator(nullptr);
         mLightingPass.pProgram->removeDefine("_OUTPUT_MOTION_VECTORS");
         applyLightingProgramControl(SuperSampling);
-        fboDesc.setSampleCount(1);
 
         if (mAAMode == AAMode::FXAA)
         {
@@ -720,17 +707,17 @@ void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
     }
 
     mpMainFbo = FboHelper::create2D(w, h, fboDesc);
-    mpDepthPassFbo = Fbo::create();
-    mpDepthPassFbo->attachDepthStencilTarget(mpMainFbo->getDepthStencilTexture());
+    mpMainFbo->attachDepthStencilTarget(mpDepthPassFbo->getDepthStencilTexture());
 
-    mpGBufferFbo = GBufferRaster::createGBufferFbo(w, h);
+    mpGBufferFbo = GBufferRaster::createGBufferFbo(w, h, false);
+    mpGBufferFbo->attachDepthStencilTarget(mpDepthPassFbo->getDepthStencilTexture());
 
     mpResolveFbo = mpMainFbo;
 }
 
 void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 {
-    static const FileDialogFilterVec kImageFilesFilter = { {"bmp"}, {"jpg"}, {"dds"}, {"png"}, {"tiff"}, {"tif"}, {"tga"} };
+    static const FileDialogFilterVec kImageFilesFilter = { {"bmp"}, {"jpg"}, {"dds"}, {"png"}, {"tiff"}, {"tif"}, {"tga"}, {"hdr"}, {"exr"}  };
 
     if (pGui->addButton("Load Model"))
     {
@@ -803,8 +790,7 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 
         if (pGui->beginGroup("Renderer Settings"))
         {
-            pGui->addCheckBox("Depth Pass", mEnableDepthPass);
-            pGui->addTooltip("Run a depth-pass at the beginning of the frame");
+            pGui->addDropdown("Render Path", renderPathList, (uint32_t&)mRenderPath);
 
             if (pGui->addCheckBox("Specialize Material Shaders", mPerMaterialShader))
             {

@@ -82,11 +82,8 @@ namespace Falcor
     {
     }
 
-    void BlitPass::execute(RenderContext* pContext, const RenderData* pRenderData)
+    void BlitPass::execute(RenderContext* pContext, Texture::SharedPtr pSrcTex, Texture::SharedPtr pDstTex)
     {
-        const auto& pSrcTex = pRenderData->getTexture(kSrc);
-        const auto& pDstTex = pRenderData->getTexture(kDst);
-
         if(pSrcTex && pDstTex)
         {
             pContext->blit(pSrcTex->getSRV(), pDstTex->getRTV(), uvec4(-1), uvec4(-1), mFilter);
@@ -95,6 +92,14 @@ namespace Falcor
         {
             logWarning("BlitPass::execute() - missing an input or output resource");
         }
+    }
+
+    void BlitPass::execute(RenderContext* pContext, const RenderData* pRenderData)
+    {
+        const auto& pSrcTex = pRenderData->getTexture(kSrc);
+        const auto& pDstTex = pRenderData->getTexture(kDst);
+
+        execute(pContext, pSrcTex, pDstTex);
     }
 
     void BlitPass::renderUI(Gui* pGui, const char* uiGroup)

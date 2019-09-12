@@ -24,7 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\ApplyAO.ps.slang" />
-    <None Include="Data\DepthPass.ps.slang" />
     <None Include="Data\ForwardRenderer.slang" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
