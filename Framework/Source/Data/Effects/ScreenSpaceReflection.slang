@@ -678,6 +678,6 @@ float4 psMain(VsOut pIn) : SV_TARGET0
     }
     else
     {
-        return float4(1, 0, 0, 1);
+        return float4(0, 0, 0, 1);
     }
 }

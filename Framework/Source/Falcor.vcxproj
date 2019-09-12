@@ -1281,6 +1281,7 @@
     <None Include="..\Externals\GLM\glm\gtx\vector_angle.inl" />
     <None Include="..\Externals\GLM\glm\gtx\vector_query.inl" />
     <None Include="..\Externals\GLM\glm\gtx\wrap.inl" />
+    <None Include="Data\ApplyAO.ps.slang" />
     <None Include="Data\DefaultVS.slang" />
     <None Include="Data\Effects\CascadedShadowMap.slang" />
     <None Include="Data\Effects\DepthPass.slang" />

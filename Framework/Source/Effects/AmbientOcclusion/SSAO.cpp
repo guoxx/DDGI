@@ -253,7 +253,7 @@ namespace Falcor
     void SSAO::execute(RenderContext* pContext, const Camera* pCamera, const Texture::SharedPtr& pColorIn, const Texture::SharedPtr& pColorOut, const Texture::SharedPtr& pDepthTexture, const Texture::SharedPtr& pNormalTexture)
     {
         assert(pColorOut != pColorIn);
-        auto pAoMap = generateAOMap(pContext, mpScene->getActiveCamera().get(), pDepthTexture, pNormalTexture);
+        auto pAoMap = generateAOMap(pContext, pCamera, pDepthTexture, pNormalTexture);
 
         mComposeData.pVars->setTexture("gColor", pColorIn);
         mComposeData.pVars->setTexture("gAOMap", pAoMap);

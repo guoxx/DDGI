@@ -22,10 +22,6 @@
   <ItemGroup>
     <ClInclude Include="HybridRenderer.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Data\ApplyAO.ps.slang" />
-    <None Include="Data\ForwardRenderer.slang" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3373CF0E-C24A-4C74-87B6-59243DBA03E1}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

@@ -285,12 +285,12 @@ void ForwardRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarge
 
 void ForwardRenderer::depthPass(RenderContext* pContext)
 {
-    PROFILE("depthPass");
     if (mEnableDepthPass == false) 
     {
         return;
     }
 
+    PROFILE("depthPass");
     mpState->setFbo(mpDepthPassFbo);
     mpState->setProgram(mDepthPass.pProgram);
     pContext->setGraphicsVars(mDepthPass.pVars);

@@ -818,7 +818,7 @@ namespace Falcor
     {
         setupVisibilityPassFbo(nullptr);
         executeInternal(pRenderCtx, pCamera, pDepthBuffer);
-        return mVisibilityPass.pState->getFbo()->getColorTexture(0);
+        return getVisibilityBuffer();
     }
 
     void CascadedShadowMaps::executeInternal(RenderContext* pRenderCtx, const Camera* pCamera, const Texture::SharedPtr& pSceneDepthBuffer)
@@ -910,6 +910,11 @@ namespace Falcor
         pCB->setBlob(&mCsmData, offset, sizeof(mCsmData));
     }
     
+    Texture::SharedPtr CascadedShadowMaps::getVisibilityBuffer() const
+    {
+        return mVisibilityPass.pState->getFbo()->getColorTexture(0);        
+    }
+
     Texture::SharedPtr CascadedShadowMaps::getShadowMap() const
     {
         switch(mCsmData.filterMode)

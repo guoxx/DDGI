@@ -31,6 +31,7 @@
 #include "Experimental/RenderPasses/DepthPass.h"
 #include "Experimental/RenderPasses/GBufferRaster.h"
 #include "Experimental/RenderPasses/GBufferLightingPass.h"
+#include "Experimental/RenderPasses/ForwardLightingPass.h"
 
 using namespace Falcor;
 
@@ -51,45 +52,21 @@ private:
     Fbo::SharedPtr mpDepthPassFbo;
     Fbo::SharedPtr mpResolveFbo;
     Fbo::SharedPtr mpPostProcessFbo;
+    Fbo::SharedPtr mpSSRFbo;
+    Texture::SharedPtr mpHZBTexture;
 
-    struct ShadowPass
-    {
-        bool updateShadowMap = true;
-        CascadedShadowMaps::SharedPtr pCsm;
-        Texture::SharedPtr pVisibilityBuffer;
-        glm::mat4 camVpAtLastCsmUpdate = glm::mat4();
-    };
-    ShadowPass mShadowPass;
-
-
-    //  Lighting Pass.
-    struct
-    {
-        GraphicsVars::SharedPtr pVars;
-        GraphicsProgram::SharedPtr pProgram;
-        DepthStencilState::SharedPtr pDsState;
-        RasterizerState::SharedPtr pNoCullRS;
-        BlendState::SharedPtr pAlphaBlendBS;
-    } mLightingPass;
-
+    ForwardLightingPass::SharedPtr mpForwardPass;
+    CascadedShadowMaps::SharedPtr mpShadowPass;
     SkyBox::SharedPtr mpSkyPass;
     DepthPass::SharedPtr mpDepthPass;
     GBufferRaster::SharedPtr mpGBufferRaster;
     GBufferLightingPass::SharedPtr mpGBufferLightingPass;
     BlitPass::SharedPtr mpBlitPass;
-
-    struct  
-    {
-        HierarchicalZBuffer::SharedPtr pHZBEffect;
-        Texture::SharedPtr pHZBTex;
-    } mHZB;
-
-    struct  
-    {
-        ScreenSpaceReflection::SharedPtr pSSREffect;
-        Fbo::SharedPtr pSSRFbo;
-        bool bEnableSSR = true;
-    } mSSR;
+    HierarchicalZBuffer::SharedPtr mpHZBPass;
+    ScreenSpaceReflection::SharedPtr mpSSRPass;
+    ToneMapping::SharedPtr mpToneMapper;
+    SSAO::SharedPtr mpSSAO;
+    FXAA::SharedPtr mpFXAA;
 
     //  The Temporal Anti-Aliasing Pass.
     class
@@ -119,26 +96,14 @@ private:
         uint32_t activeFboIndex = 0;
     } mTAA;
 
-
-    ToneMapping::SharedPtr mpToneMapper;
-
-    struct
-    {
-        SSAO::SharedPtr pSSAO;
-        FullScreenPass::UniquePtr pApplySSAOPass;
-        GraphicsVars::SharedPtr pVars;
-    } mSSAO;
-
-    FXAA::SharedPtr mpFXAA;
-
     void beginFrame(RenderContext* pContext, Fbo* pTargetFbo, uint64_t frameId);
     void endFrame(RenderContext* pContext);
-    void GBufferPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
-    void deferredLightingPass(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo);
+    void renderGBuffer(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void deferredLighting(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo);
     void depthPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
-    void shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture, Texture::SharedPtr* visibilityTexture);
+    void shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture);
     void renderSkyBox(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
-    void lightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void forwardLightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void executeFXAA(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void runTAA(RenderContext* pContext, Fbo::SharedPtr pColorFbo);
     void toneMapping(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
@@ -148,18 +113,10 @@ private:
     void postProcess(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
 
     void initSkyBox(const std::string& name);
-    void initPostProcess();
-    void initLightingPass();
     void initShadowPass(uint32_t windowWidth, uint32_t windowHeight);
-    void initSSAO();
-    void updateLightProbe(const LightProbe::SharedPtr& pLight);
     void initAA(SampleCallbacks* pSample);
-    void initSSR(uint32_t windowWidth, uint32_t windowHeight);
-    void initHZB(uint32_t windowWidth, uint32_t windowHeight);
+    void updateLightProbe(const LightProbe::SharedPtr& pLight);
 
-    void initControls();
-
-    GraphicsState::SharedPtr mpState;
 	SceneRenderer::SharedPtr mpSceneRenderer;
     void loadModel(SampleCallbacks* pSample, const std::string& filename, bool showProgressBar);
     void loadScene(SampleCallbacks* pSample, const std::string& filename, bool showProgressBar);
@@ -171,26 +128,6 @@ private:
     void setSceneSampler(uint32_t maxAniso);
 
     Sampler::SharedPtr mpSceneSampler;
-
-    struct ProgramControl
-    {
-        bool enabled;
-        bool unsetOnEnabled;
-        std::string define;
-        std::string value;
-    };
-
-    enum ControlID
-    {
-        SuperSampling,
-        EnableShadows,
-        EnableReflections,
-        EnableSSAO,
-        EnableHashedAlpha,
-        EnableTransparency,
-        VisualizeCascades,
-        Count
-    };
 
     enum class SamplePattern : uint32_t
     {
@@ -215,14 +152,18 @@ private:
     AAMode mAAMode = AAMode::None;
     SamplePattern mTAASamplePattern = SamplePattern::Halton;
     void applyAaMode(SampleCallbacks* pSample);
-    std::vector<ProgramControl> mControls;
-    void applyLightingProgramControl(ControlID controlID);
 
     RenderPath mRenderPath = RenderPath::Deferred;
     bool mUseCameraPath = true;
     void applyCameraPathState();
     bool mPerMaterialShader = false;
     bool mUseCsSkinning = false;
+    bool mVisualizeCascades = false;
+    bool mEnableSSAO = true;
+    bool mEnableSSR = true;
+    // TODO
+    bool mEnableTransparent = false;
+    bool mEnableAlphaTest = false;
     void applyCsSkinningMode();
     static const std::string skDefaultScene;
 

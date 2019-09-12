@@ -213,7 +213,11 @@ namespace Falcor
             std::vector<Source> mSources;
             EntryPoint mEntryPoints[kShaderCount];
             uint32_t mActiveSource = -1;
+#ifdef _DEBUG
+            Shader::CompilerFlags mShaderFlags = Shader::CompilerFlags::EmitDebugInfo;
+#else
             Shader::CompilerFlags mShaderFlags = Shader::CompilerFlags::None;
+#endif
             Shader::OptimizationLevel mOptimizationLevel = Shader::OptimizationLevel::Default;
 #ifdef FALCOR_VK
             std::string mShaderModel = "450";

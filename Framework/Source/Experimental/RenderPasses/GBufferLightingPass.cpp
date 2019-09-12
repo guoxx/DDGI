@@ -119,7 +119,6 @@ void GBufferLightingPass::execute(RenderContext* pContext, const Fbo::SharedPtr&
 {
     setVarsData(pGBufferFbo, visibilityTexture);
 
-    pContext->clearFbo(pTargetFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::Color);
     mpState->pushFbo(pTargetFbo);
 
     pContext->pushGraphicsState(mpState);

@@ -84,6 +84,10 @@ namespace Falcor
         */
         Texture::SharedPtr generateVisibilityBuffer(RenderContext* pRenderCtx, const Camera* pCamera, const Texture::SharedPtr& pSceneDepthBuffer);
 
+        /** Get the visibility buffer.
+        */
+        Texture::SharedPtr getVisibilityBuffer() const;
+
         /** Get the shadow map texture.
         */
         Texture::SharedPtr getShadowMap() const;

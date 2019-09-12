@@ -147,6 +147,23 @@ namespace Falcor
         if (mUsePreGenDepth == false) pContext->clearDsv(pRenderData->getTexture(kDepth)->getDSV().get(), 1, 0);
     }
 
+    void ForwardLightingPass::execute(RenderContext* pContext, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo)
+    {
+        if (mpSceneRenderer)
+        {
+            mpVars["PerFrameCB"]["gRenderTargetDim"] = vec2(pTargetFbo->getWidth(), pTargetFbo->getHeight());
+            mpVars->setTexture(kVisBuffer, visibilityTexture);
+
+            mpState->pushFbo(pTargetFbo);
+            pContext->pushGraphicsState(mpState);
+            pContext->pushGraphicsVars(mpVars);
+            mpSceneRenderer->renderScene(pContext);
+            pContext->popGraphicsState();
+            pContext->popGraphicsVars();
+            mpState->popFbo();
+        }
+    }
+
     void ForwardLightingPass::execute(RenderContext* pContext, const RenderData* pRenderData)
     {
         initDepth(pRenderData);

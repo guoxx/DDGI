@@ -28,6 +28,11 @@
 import Shading;
 import DefaultVS;
 
+cbuffer PerFrameCB
+{
+    float2 gRenderTargetDim;
+};
+
 struct GBufferOut
 {
     float4 posW             : SV_TARGET0;
@@ -42,7 +47,7 @@ struct GBufferOut
 
 /** Entry point for G-buffer rasterization pixel shader.
 */
-GBufferOut ps(VertexOut vsOut)
+GBufferOut ps(VertexOut vsOut, float4 pixelCrd : SV_POSITION)
 {
     ShadingData sd = prepareShadingData(vsOut, gMaterial, gCamera.posW);
 
@@ -55,7 +60,9 @@ GBufferOut ps(VertexOut vsOut)
     gOut.diffuseOpacity = float4(sd.diffuse, sd.opacity);
     gOut.specRough      = float4(sd.specular, sd.linearRoughness);
     gOut.emissive       = float4(sd.emissive, 0.f);
-    gOut.matlExtra      = float4(normalize(vsOut.normalW) * 0.5 + 0.5, 0.f);
+
+    gOut.matlExtra.xy = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim);
+    gOut.matlExtra.zw = float2(0, 0);
 
     return gOut;
 }

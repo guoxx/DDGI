@@ -124,9 +124,14 @@ void GBufferRaster::renderUI(Gui* pGui, const char* uiGroup)
 void GBufferRaster::setCullMode(RasterizerState::CullMode mode)
 {
     mCullMode = mode;
+
     RasterizerState::Desc rsDesc;
     rsDesc.setCullMode(mCullMode);
     mRaster.pState->setRasterizerState(RasterizerState::create(rsDesc));
+
+    DepthStencilState::Desc dsDesc;
+    dsDesc.setDepthFunc(DepthStencilState::Func::LessEqual);
+    mRaster.pState->setDepthStencilState(DepthStencilState::create(dsDesc));
 }
 
 void GBufferRaster::execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo)
@@ -137,7 +142,8 @@ void GBufferRaster::execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo)
         return;
     }
 
-    pContext->clearFbo(pGBufferFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::All);
+    mRaster.pVars["PerFrameCB"]["gRenderTargetDim"] = vec2(pGBufferFbo->getWidth(), pGBufferFbo->getHeight());
+
     mRaster.pState->pushFbo(pGBufferFbo);
 
     pContext->pushGraphicsState(mRaster.pState);

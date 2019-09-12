@@ -49,44 +49,13 @@ const Gui::DropdownList renderPathList =
     { 1, "Forward"},
 };
 
-void HybridRenderer::initLightingPass()
-{
-    mLightingPass.pProgram = GraphicsProgram::createFromFile("ForwardRenderer.slang", "vs", "ps");
-    mLightingPass.pProgram->addDefine("_LIGHT_COUNT", std::to_string(mpSceneRenderer->getScene()->getLightCount()));
-    initControls();
-    mLightingPass.pVars = GraphicsVars::create(mLightingPass.pProgram->getReflector());
-    
-    DepthStencilState::Desc dsDesc;
-    dsDesc.setDepthTest(true).setStencilTest(false)./*setDepthWriteMask(false).*/setDepthFunc(DepthStencilState::Func::LessEqual);
-    mLightingPass.pDsState = DepthStencilState::create(dsDesc);
-
-    RasterizerState::Desc rsDesc;
-    rsDesc.setCullMode(RasterizerState::CullMode::None);
-    mLightingPass.pNoCullRS = RasterizerState::create(rsDesc);
-
-    BlendState::Desc bsDesc;
-    bsDesc.setRtBlend(0, true).setRtParams(0, BlendState::BlendOp::Add, BlendState::BlendOp::Add, BlendState::BlendFunc::SrcAlpha, BlendState::BlendFunc::OneMinusSrcAlpha, BlendState::BlendFunc::One, BlendState::BlendFunc::Zero);
-    mLightingPass.pAlphaBlendBS = BlendState::create(bsDesc);
-}
-
 void HybridRenderer::initShadowPass(uint32_t windowWidth, uint32_t windowHeight)
 {
-    mShadowPass.pCsm = CascadedShadowMaps::create(mpSceneRenderer->getScene()->getLight(0), 2048, 2048, windowWidth, windowHeight, mpSceneRenderer->getScene()->shared_from_this());
-    mShadowPass.pCsm->setFilterMode(CsmFilterEvsm4);
-    mShadowPass.pCsm->setVsmLightBleedReduction(0.3f);
-    mShadowPass.pCsm->setVsmMaxAnisotropy(4);
-    mShadowPass.pCsm->setEvsmBlur(7, 3);
-}
-
-void HybridRenderer::initSSAO()
-{
-    mSSAO.pSSAO = SSAO::create(uvec2(1024));
-    mSSAO.pApplySSAOPass = FullScreenPass::create("ApplyAO.ps.slang");
-    mSSAO.pVars = GraphicsVars::create(mSSAO.pApplySSAOPass->getProgram()->getReflector());
-
-    Sampler::Desc desc;
-    desc.setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear);
-    mSSAO.pVars->setSampler("gSampler", Sampler::create(desc));
+    mpShadowPass = CascadedShadowMaps::create(mpSceneRenderer->getScene()->getLight(0), 2048, 2048, windowWidth, windowHeight, mpSceneRenderer->getScene()->shared_from_this());
+    mpShadowPass->setFilterMode(CsmFilterEvsm4);
+    mpShadowPass->setVsmLightBleedReduction(0.3f);
+    mpShadowPass->setVsmMaxAnisotropy(4);
+    mpShadowPass->setEvsmBlur(7, 3);
 }
 
 void HybridRenderer::setSceneSampler(uint32_t maxAniso)
@@ -156,13 +125,19 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpDepthPass = DepthPass::create();
     mpDepthPass->setScene(pScene);
 
-    initLightingPass();
+    mpForwardPass = ForwardLightingPass::create();
+    mpForwardPass->setScene(pScene);
+    mpForwardPass->usePreGeneratedDepthBuffer(true);
+
     auto pTargetFbo = pSample->getCurrentFbo();
     initShadowPass(pTargetFbo->getWidth(), pTargetFbo->getHeight());
-    initSSAO();
     initAA(pSample);
-    initHZB(pTargetFbo->getWidth(), pTargetFbo->getHeight());
-    initSSR(pTargetFbo->getWidth(), pTargetFbo->getHeight());
+
+    mpSSRPass = ScreenSpaceReflection::create();
+
+    mpHZBPass = HierarchicalZBuffer::create();
+
+    mpSSAO = SSAO::create(float2(pTargetFbo->getWidth(), pTargetFbo->getHeight()));
 
     mpGBufferRaster = GBufferRaster::create();
     mpGBufferRaster->setScene(pScene);
@@ -171,10 +146,10 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpGBufferLightingPass->setScene(pScene);
 
     mpBlitPass = BlitPass::create();
-
-    mControls[EnableReflections].enabled = pScene->getLightProbeCount() > 0;
-    applyLightingProgramControl(ControlID::EnableReflections);
     
+    mpToneMapper = ToneMapping::create(ToneMapping::Operator::Fixed);
+    mpToneMapper->setExposureValue(-1);
+
     pSample->setCurrentTime(0);
 }
 
@@ -251,9 +226,6 @@ void HybridRenderer::updateLightProbe(const LightProbe::SharedPtr& pLight)
     pLight->setPosW(pScene->getCenter());
     pLight->setSampler(mpSceneSampler);
     pScene->addLightProbe(pLight);
-
-    mControls[EnableReflections].enabled = true;
-    applyLightingProgramControl(ControlID::EnableReflections);
 }
 
 void HybridRenderer::initAA(SampleCallbacks* pSample)
@@ -263,31 +235,8 @@ void HybridRenderer::initAA(SampleCallbacks* pSample)
     applyAaMode(pSample);
 }
 
-void HybridRenderer::initSSR(uint32_t windowWidth, uint32_t windowHeight)
-{
-    mSSR.pSSREffect = ScreenSpaceReflection::create();
-
-    Fbo::Desc fboDesc;
-    fboDesc.setColorTarget(0, ResourceFormat::RGBA32Float);
-    mSSR.pSSRFbo = FboHelper::create2D(windowWidth, windowHeight, fboDesc);
-}
-
-void HybridRenderer::initHZB(uint32_t windowWidth, uint32_t windowHeight)
-{
-    mHZB.pHZBEffect = HierarchicalZBuffer::create();
-    mHZB.pHZBTex = HierarchicalZBuffer::createHZBTexture(windowWidth, windowHeight);
-}
-
-void HybridRenderer::initPostProcess()
-{
-    mpToneMapper = ToneMapping::create(ToneMapping::Operator::Fixed);
-    mpToneMapper->setExposureValue(-1);
-}
-
 void HybridRenderer::onLoad(SampleCallbacks* pSample, RenderContext* pRenderContext)
 {
-    mpState = GraphicsState::create();    
-    initPostProcess();
     loadScene(pSample, skDefaultScene, true);
 }
 
@@ -304,8 +253,8 @@ void HybridRenderer::renderSkyBox(RenderContext* pContext, Fbo::SharedPtr pTarge
 void HybridRenderer::beginFrame(RenderContext* pContext, Fbo* pTargetFbo, uint64_t frameId)
 {
     GPU_EVENT(pContext, "beginFrame");
-    pContext->pushGraphicsState(mpState);
-    pContext->clearFbo(mpMainFbo.get(), glm::vec4(0.7f, 0.7f, 0.7f, 1.0f), 1, 0, FboAttachmentType::All);
+    pContext->clearFbo(mpMainFbo.get(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 1, 0, FboAttachmentType::All);
+    pContext->clearFbo(mpGBufferFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::All);
     pContext->clearFbo(mpPostProcessFbo.get(), glm::vec4(), 1, 0, FboAttachmentType::Color);
 
     if (mAAMode == AAMode::TAA)
@@ -330,12 +279,12 @@ void HybridRenderer::buildHZB(RenderContext* pContext)
     GPU_EVENT(pContext, "HZB");
     const Texture::SharedPtr pDepthTexture = mpResolveFbo->getDepthStencilTexture();
     const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-    mHZB.pHZBEffect->execute(pContext, pCamera, pDepthTexture, mHZB.pHZBTex);
+    mpHZBPass->execute(pContext, pCamera, pDepthTexture, mpHZBTexture);
 }
 
 void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
-    if (mSSR.bEnableSSR)
+    if (mEnableSSR)
     {
         PROFILE("SSR");
         GPU_EVENT(pContext, "SSR");
@@ -343,9 +292,9 @@ void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedP
         Texture::SharedPtr pNormal = mpResolveFbo->getColorTexture(1);
         Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
         const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mSSR.pSSREffect->execute(pContext, pCamera, pColorIn, pDepth, mHZB.pHZBTex, pNormal, mSSR.pSSRFbo);
+        mpSSRPass->execute(pContext, pCamera, pColorIn, pDepth, mpHZBTexture, pNormal, mpSSRFbo);
 
-        pContext->blit(mSSR.pSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
+        pContext->blit(mpSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
     }
 }
 
@@ -356,14 +305,14 @@ void HybridRenderer::toneMapping(RenderContext* pContext, Fbo::SharedPtr pTarget
     mpToneMapper->execute(pContext, mpResolveFbo->getColorTexture(0), pTargetFbo);
 }
 
-void HybridRenderer::GBufferPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
+void HybridRenderer::renderGBuffer(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
     PROFILE("GBuffer");
     GPU_EVENT(pContext, "GBuffer");
     mpGBufferRaster->execute(pContext, pTargetFbo);
 }
 
-void HybridRenderer::deferredLightingPass(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo)
+void HybridRenderer::deferredLighting(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo)
 {
     PROFILE("Lighting");
     GPU_EVENT(pContext, "Lighting");
@@ -377,45 +326,20 @@ void HybridRenderer::depthPass(RenderContext* pContext, Fbo::SharedPtr pTargetFb
     mpDepthPass->execute(pContext, pTargetFbo);
 }
 
-void HybridRenderer::lightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
+void HybridRenderer::forwardLightingPass(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
     PROFILE("lightingPass");
     GPU_EVENT(pContext, "lightingPass");
-    mpState->setFbo(mpMainFbo);
-    mpState->setProgram(mLightingPass.pProgram);
-    mpState->setDepthStencilState(mLightingPass.pDsState);
-    pContext->setGraphicsVars(mLightingPass.pVars);
-    ConstantBuffer::SharedPtr pCB = mLightingPass.pVars->getConstantBuffer("PerFrameCB");
-    pCB["gOpacityScale"] = mOpacityScale;
-
-    if (mControls[ControlID::EnableShadows].enabled)
-    {
-        pCB["camVpAtLastCsmUpdate"] = mShadowPass.camVpAtLastCsmUpdate;
-        mLightingPass.pVars->setTexture("gVisibilityBuffer", mShadowPass.pVisibilityBuffer);
-    }
-
-    if (mAAMode == AAMode::TAA)
-    {
-        pContext->clearFbo(mTAA.getActiveFbo().get(), vec4(0.0, 0.0, 0.0, 0.0), 1, 0, FboAttachmentType::Color);
-        pCB["gRenderTargetDim"] = glm::vec2(pTargetFbo->getWidth(), pTargetFbo->getHeight());
-    }
-
-    mpSceneRenderer->renderScene(pContext);
-    pContext->flush();
-    mpState->setDepthStencilState(nullptr);
+    mpForwardPass->execute(pContext, mpShadowPass->getVisibilityBuffer(), pTargetFbo);
 }
 
-void HybridRenderer::shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture, Texture::SharedPtr* visibilityTexture)
+void HybridRenderer::shadowPass(RenderContext* pContext, Texture::SharedPtr pDepthTexture)
 {
     PROFILE("shadowPass");
     GPU_EVENT(pContext, "shadowPass");
-    if (mControls[EnableShadows].enabled && mShadowPass.updateShadowMap)
-    {
-        const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mShadowPass.camVpAtLastCsmUpdate = pCamera->getViewProjMatrix();
-        *visibilityTexture = mShadowPass.pCsm->generateVisibilityBuffer(pContext, pCamera, pDepthTexture);
-        pContext->flush();
-    }
+    const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
+    mpShadowPass->generateVisibilityBuffer(pContext, pCamera, pDepthTexture);
+    pContext->flush();
 }
 
 void HybridRenderer::runTAA(RenderContext* pContext, Fbo::SharedPtr pColorFbo)
@@ -446,19 +370,14 @@ void HybridRenderer::runTAA(RenderContext* pContext, Fbo::SharedPtr pColorFbo)
 
 void HybridRenderer::ambientOcclusion(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
-    PROFILE("SSAO");
-    GPU_EVENT(pContext, "SSAO");
-    if (mControls[EnableSSAO].enabled)
+    if (mEnableSSAO)
     {
-        Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
-        Texture::SharedPtr pAOMap = mSSAO.pSSAO->generateAOMap(pContext, mpSceneRenderer->getScene()->getActiveCamera().get(), pDepth, mpResolveFbo->getColorTexture(1));
-        mSSAO.pVars->setTexture("gColor", mpPostProcessFbo->getColorTexture(0));
-        mSSAO.pVars->setTexture("gAOMap", pAOMap);
-
-        pContext->getGraphicsState()->setFbo(pTargetFbo);
-        pContext->setGraphicsVars(mSSAO.pVars);
-
-        mSSAO.pApplySSAOPass->execute(pContext);
+        PROFILE("SSAO");
+        GPU_EVENT(pContext, "SSAO");
+        const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
+        Texture::SharedPtr pDepthTex = mpResolveFbo->getDepthStencilTexture();
+        Texture::SharedPtr pNormalTex = mpResolveFbo->getColorTexture(1);
+        mpSSAO->execute(pContext, pCamera, mpPostProcessFbo->getColorTexture(0), pTargetFbo->getColorTexture(0), pDepthTex, pNormalTex);
     }
 }
 
@@ -467,7 +386,7 @@ void HybridRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarget
     PROFILE("postProcess");
     GPU_EVENT(pContext, "postProcess");
 
-    Fbo::SharedPtr pPostProcessDst = mControls[EnableSSAO].enabled ? mpPostProcessFbo : pTargetFbo;
+    Fbo::SharedPtr pPostProcessDst = mEnableSSAO ? mpPostProcessFbo : pTargetFbo;
     buildHZB(pContext);
     screenSpaceReflection(pContext, pPostProcessDst);
     toneMapping(pContext, pPostProcessDst);
@@ -478,10 +397,10 @@ void HybridRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarget
 
 void HybridRenderer::executeFXAA(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
 {
-    PROFILE("FXAA");
-    GPU_EVENT(pContext, "FXAA");
     if(mAAMode == AAMode::FXAA)
     {
+        PROFILE("FXAA");
+        GPU_EVENT(pContext, "FXAA");
         pContext->blit(pTargetFbo->getColorTexture(0)->getSRV(), mpResolveFbo->getRenderTargetView(0));
         mpFXAA->execute(pContext, mpResolveFbo->getColorTexture(0), pTargetFbo);
     }
@@ -499,16 +418,17 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         }
 
         depthPass(pRenderContext, mpDepthPassFbo);
-        shadowPass(pRenderContext, mpDepthPassFbo->getDepthStencilTexture(), &mShadowPass.pVisibilityBuffer);
+        shadowPass(pRenderContext, mpDepthPassFbo->getDepthStencilTexture());
         if (mRenderPath == RenderPath::Deferred)
         {
-            GBufferPass(pRenderContext, mpGBufferFbo);
-            deferredLightingPass(pRenderContext, mpGBufferFbo, mShadowPass.pVisibilityBuffer, mpMainFbo);
+            renderGBuffer(pRenderContext, mpGBufferFbo);
+            deferredLighting(pRenderContext, mpGBufferFbo, mpShadowPass->getVisibilityBuffer(), mpMainFbo);
             mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(1), mpMainFbo->getColorTexture(1));
+            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(7), mpMainFbo->getColorTexture(2));
         }
         else
         {
-            lightingPass(pRenderContext, mpMainFbo);
+            forwardLightingPass(pRenderContext, mpMainFbo);
         }
         renderSkyBox(pRenderContext, mpMainFbo);
         postProcess(pRenderContext, pTargetFbo);
@@ -581,13 +501,14 @@ void HybridRenderer::onResizeSwapChain(SampleCallbacks* pSample, uint32_t width,
     fboDesc.setColorTarget(0, ResourceFormat::RGBA8UnormSrgb);
     mpPostProcessFbo = FboHelper::create2D(width, height, fboDesc);
 
-    Fbo::Desc ssrFboDesc = mSSR.pSSRFbo->getDesc();
-    mSSR.pSSRFbo = FboHelper::create2D(width, height, ssrFboDesc);
+    Fbo::Desc ssrFboDesc;
+    ssrFboDesc.setColorTarget(0, ResourceFormat::RGBA32Float);
+    mpSSRFbo = FboHelper::create2D(width, height, ssrFboDesc);
 
-    mHZB.pHZBTex = HierarchicalZBuffer::createHZBTexture(width, height);
+    mpHZBTexture = HierarchicalZBuffer::createHZBTexture(width, height);
 
     applyAaMode(pSample);
-    mShadowPass.pCsm->onResize(width, height);
+    mpShadowPass->onResize(width, height);
 
     if(mpSceneRenderer)
     {
@@ -607,40 +528,6 @@ void HybridRenderer::applyCsSkinningMode()
 void HybridRenderer::setActiveCameraAspectRatio(uint32_t w, uint32_t h)
 {
     mpSceneRenderer->getScene()->getActiveCamera()->setAspectRatio((float)w / (float)h);
-}
-
-void HybridRenderer::initControls()
-{
-    mControls.resize(ControlID::Count);
-    mControls[ControlID::SuperSampling] = { false, false, "INTERPOLATION_MODE", "sample" };
-    mControls[ControlID::EnableShadows] = { true, false, "_ENABLE_SHADOWS" };
-    mControls[ControlID::EnableReflections] = { false, false, "_ENABLE_REFLECTIONS" };
-    mControls[ControlID::EnableHashedAlpha] = { true, true, "_DEFAULT_ALPHA_TEST" };
-    mControls[ControlID::EnableTransparency] = { false, false, "_ENABLE_TRANSPARENCY" };
-    mControls[ControlID::EnableSSAO] = { true, false, "" };
-    mControls[ControlID::VisualizeCascades] = { false, false, "_VISUALIZE_CASCADES" };
-
-    for (uint32_t i = 0; i < ControlID::Count; i++)
-    {
-        applyLightingProgramControl((ControlID)i);
-    }
-}
-
-void HybridRenderer::applyLightingProgramControl(ControlID controlId)
-{
-    const ProgramControl control = mControls[controlId];
-    if (control.define.size())
-    {
-        bool add = control.unsetOnEnabled ? !control.enabled : control.enabled;
-        if (add)
-        {
-            mLightingPass.pProgram->addDefine(control.define, control.value);
-        }
-        else
-        {
-            mLightingPass.pProgram->removeDefine(control.define);
-        }
-    }
 }
 
 void HybridRenderer::createTaaPatternGenerator(uint32_t fboWidth, uint32_t fboHeight)
@@ -664,8 +551,6 @@ void HybridRenderer::createTaaPatternGenerator(uint32_t fboWidth, uint32_t fboHe
 
 void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
 {
-    if (mLightingPass.pProgram == nullptr) return;
-
     uint32_t w = pSample->getCurrentFbo()->getWidth();
     uint32_t h = pSample->getCurrentFbo()->getHeight();
 
@@ -683,8 +568,6 @@ void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
 
     if (mAAMode == AAMode::TAA)
     {
-        mLightingPass.pProgram->removeDefine("INTERPOLATION_MODE");
-        mLightingPass.pProgram->addDefine("_OUTPUT_MOTION_VECTORS");
         fboDesc.setColorTarget(2, ResourceFormat::RG16Float);
 
         Fbo::Desc taaFboDesc;
@@ -695,8 +578,6 @@ void HybridRenderer::applyAaMode(SampleCallbacks* pSample)
     else
     {
         mpSceneRenderer->getScene()->getActiveCamera()->setPatternGenerator(nullptr);
-        mLightingPass.pProgram->removeDefine("_OUTPUT_MOTION_VECTORS");
-        applyLightingProgramControl(SuperSampling);
 
         if (mAAMode == AAMode::FXAA)
         {
@@ -856,15 +737,8 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             Scene::SharedPtr pScene = mpSceneRenderer->getScene();
             if (pScene->getLightProbeCount() > 0)
             {
-                if (pGui->addCheckBox("Enable", mControls[ControlID::EnableReflections].enabled))
-                {
-                    applyLightingProgramControl(ControlID::EnableReflections);
-                }
-                if (mControls[ControlID::EnableReflections].enabled)
-                {
-                    pGui->addSeparator();
-                    pScene->getLightProbe(0)->renderUI(pGui);
-                }
+                pGui->addSeparator();
+                pScene->getLightProbe(0)->renderUI(pGui);
             }
 
             pGui->endGroup();
@@ -874,58 +748,47 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 
         if (pGui->beginGroup("SSR"))
         {
-            pGui->addCheckBox("Enable SSR", mSSR.bEnableSSR);
-            mSSR.pSSREffect->renderUI(pGui);
+            pGui->addCheckBox("Enable SSR", mEnableSSR);
+            mpSSRPass->renderUI(pGui);
 
             pGui->endGroup();
         }
 
         if (pGui->beginGroup("Shadows"))
         {
-            if (pGui->addCheckBox("Enable Shadows", mControls[ControlID::EnableShadows].enabled))
+            mpShadowPass->renderUI(pGui);
+            if (pGui->addCheckBox("Visualize Cascades", mVisualizeCascades))
             {
-                applyLightingProgramControl(ControlID::EnableShadows);
-            }
-            if (mControls[ControlID::EnableShadows].enabled)
-            {
-                pGui->addCheckBox("Update Map", mShadowPass.updateShadowMap);
-                mShadowPass.pCsm->renderUI(pGui);
-                if (pGui->addCheckBox("Visualize Cascades", mControls[ControlID::VisualizeCascades].enabled))
-                {
-                    applyLightingProgramControl(ControlID::VisualizeCascades);
-                    mShadowPass.pCsm->toggleCascadeVisualization(mControls[ControlID::VisualizeCascades].enabled);
-                }
+                mpShadowPass->toggleCascadeVisualization(mVisualizeCascades);
             }
             pGui->endGroup();
         }
 
         if (pGui->beginGroup("SSAO"))
         {
-            if (pGui->addCheckBox("Enable SSAO", mControls[ControlID::EnableSSAO].enabled))
+            pGui->addCheckBox("Enable SSAO", mEnableSSAO);
+            if (mEnableSSAO)
             {
-                applyLightingProgramControl(ControlID::EnableSSAO);
-            }
-
-            if (mControls[ControlID::EnableSSAO].enabled)
-            {
-                mSSAO.pSSAO->renderUI(pGui);
+                mpSSAO->renderUI(pGui);
             }
             pGui->endGroup();
         }
 
         if (pGui->beginGroup("Transparency"))
         {
-            if (pGui->addCheckBox("Enable Transparency", mControls[ControlID::EnableTransparency].enabled))
+            if (pGui->addCheckBox("Enable Transparency", mEnableTransparent))
             {
-                applyLightingProgramControl(ControlID::EnableTransparency);
+                // TODO
+                assert(false);
             }
             pGui->addFloatVar("Opacity Scale", mOpacityScale, 0, 1);
             pGui->endGroup();
         }
 
-        if (pGui->addCheckBox("Hashed-Alpha Test", mControls[ControlID::EnableHashedAlpha].enabled))
+        if (pGui->addCheckBox("Hashed-Alpha Test", mEnableAlphaTest))
         {
-            applyLightingProgramControl(ControlID::EnableHashedAlpha);
+            // TODO
+            assert(false);
         }
     }
 }

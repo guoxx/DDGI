@@ -10,14 +10,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Data\ApplyAO.ps.slang">
-      <Filter>Data</Filter>
-    </None>
-    <None Include="Data\ForwardRenderer.slang">
-      <Filter>Data</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="HybridRenderer.h" />
   </ItemGroup>
 </Project>

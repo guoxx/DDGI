@@ -46,7 +46,7 @@ static const std::vector<GBufferChannelDesc> kGBufferChannelDesc({
         {"diffuseOpacity",  "diffuse color and opacity",    "gDiffuseOpacity"   },
         {"specRough",       "specular color and roughness", "gSpecRough"        },
         {"emissive",        "emissive color",               "gEmissive"         },
-        {"matlExtra",       "additional material data",     "gMatlExtra"        }
+        {"matlExtra",       "additional material data",     "gMatlExtra"        },
         });
 
 // Culling dictionary key and dropdown mode selection
