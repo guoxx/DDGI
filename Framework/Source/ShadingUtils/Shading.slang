@@ -367,7 +367,7 @@ ShadingResult evalMaterial(ShadingData sd, LightData light, float shadowFactor)
     sr.color.a = sd.opacity;
 
     // Calculate the specular term
-    sr.specularBrdf = saturate(evalSpecularBrdf(sd, ls));
+    sr.specularBrdf = max(0, evalSpecularBrdf(sd, ls));
     sr.specular = ls.specular * sr.specularBrdf * ls.NdotL;
     sr.color.rgb += sr.specular;
 
