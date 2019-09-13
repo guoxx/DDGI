@@ -122,7 +122,7 @@ float3 getGGXMicrofacet(float2 u, float3 N, float roughness)
     float a2 = roughness * roughness;
 
     float phi = M_PI2 * u.x;
-    float cosTheta = sqrt(max(0, (1 - u.y)) / (1 + (a2 * a2 - 1) * u.y));
+    float cosTheta = sqrt(max(0, (1 - u.y)) / (1 + (a2 - 1) * u.y));
     float sinTheta = sqrt(max(0, 1 - cosTheta * cosTheta));
 
     // Tangent space H
