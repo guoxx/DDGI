@@ -164,5 +164,6 @@ void GBufferRaster::execute(RenderContext* pContext, const RenderData* pRenderDa
         pFbo->attachColorTarget(pRenderData->getTexture(kGBufferChannelDesc[i].name), i);
     }
 
+    pContext->clearFbo(pFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::All);
     execute(pContext, pFbo);
 }
