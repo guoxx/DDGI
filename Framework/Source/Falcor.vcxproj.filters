@@ -583,6 +583,12 @@
     <ClCompile Include="Experimental\RenderPasses\GBufferLightingPass.cpp">
       <Filter>Experimental\RenderPasses</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\Scene\SceneNoriExporter.cpp">
+      <Filter>Graphics\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\Scene\pugixml\pugixml.cpp">
+      <Filter>Graphics\Scene\pugixml</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Model\Animation.h">
@@ -2147,6 +2153,15 @@
     <ClInclude Include="Experimental\RenderPasses\GBufferLightingPass.h">
       <Filter>Experimental\RenderPasses</Filter>
     </ClInclude>
+    <ClInclude Include="Graphics\Scene\SceneNoriExporter.h">
+      <Filter>Graphics\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\Scene\pugixml\pugixml.hpp">
+      <Filter>Graphics\Scene\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\Scene\pugixml\pugiconfig.hpp">
+      <Filter>Graphics\Scene\pugixml</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Externals">
@@ -2358,6 +2373,9 @@
     </Filter>
     <Filter Include="Effects\SSR">
       <UniqueIdentifier>{45dbf39c-1f3f-43b3-ae7f-bc949feee691}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Scene\pugixml">
+      <UniqueIdentifier>{b1ea1ff2-2243-48c5-bc25-343da36c3c5e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

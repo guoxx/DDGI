@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 #include "HybridRenderer.h"
+#include <Graphics/Scene/SceneNoriExporter.h>
 
 const std::string HybridRenderer::skDefaultScene = "Arcade/Arcade.fscene";
 
@@ -626,6 +627,16 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             if (openFileDialog(kImageFilesFilter, filename))
             {
                 initSkyBox(filename);
+            }
+        }
+
+        if (pGui->addButton("Export Scene To Nori Renderer"))
+        {
+            std::string filename;
+            if (saveFileDialog(SceneNoriExporter::kFileExtensionFilters, filename))
+            {
+                vec2 sz{ mpGBufferFbo->getWidth(), mpGBufferFbo->getHeight() };
+                SceneNoriExporter::saveScene(filename, mpSceneRenderer->getScene().get(), sz);
             }
         }
 

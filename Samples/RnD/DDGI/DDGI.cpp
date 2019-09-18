@@ -33,8 +33,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
     HybridRenderer::UniquePtr pRenderer = std::make_unique<HybridRenderer>();
     SampleConfig config;
-    config.windowDesc.width = 1600;
-    config.windowDesc.height = 900;
+    config.windowDesc.width = 800;
+    config.windowDesc.height = 600;
     config.windowDesc.title = "Falcor Project Template";
     config.windowDesc.resizableWindow = true;
     Sample::run(config, pRenderer);

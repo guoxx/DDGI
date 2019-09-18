@@ -423,9 +423,11 @@
     </ClCompile>
     <ClCompile Include="Graphics\Scene\Editor\SceneEditor.cpp" />
     <ClCompile Include="Graphics\Scene\Editor\SceneEditorRenderer.cpp" />
+    <ClCompile Include="Graphics\Scene\pugixml\pugixml.cpp" />
     <ClCompile Include="Graphics\Scene\Scene.cpp" />
     <ClCompile Include="Graphics\Scene\SceneExporter.cpp" />
     <ClCompile Include="Graphics\Scene\SceneImporter.cpp" />
+    <ClCompile Include="Graphics\Scene\SceneNoriExporter.cpp" />
     <ClCompile Include="Graphics\Scene\SceneRenderer.cpp" />
     <ClCompile Include="Graphics\TextureHelper.cpp" />
     <ClCompile Include="Sample.cpp" />
@@ -1065,10 +1067,13 @@
     </ClInclude>
     <ClInclude Include="Graphics\Scene\Editor\SceneEditor.h" />
     <ClInclude Include="Graphics\Scene\Editor\SceneEditorRenderer.h" />
+    <ClInclude Include="Graphics\Scene\pugixml\pugiconfig.hpp" />
+    <ClInclude Include="Graphics\Scene\pugixml\pugixml.hpp" />
     <ClInclude Include="Graphics\Scene\Scene.h" />
     <ClInclude Include="Graphics\Scene\SceneExporter.h" />
     <ClInclude Include="Graphics\Scene\SceneExportImportCommon.h" />
     <ClInclude Include="Graphics\Scene\SceneImporter.h" />
+    <ClInclude Include="Graphics\Scene\SceneNoriExporter.h" />
     <ClInclude Include="Graphics\Scene\SceneRenderer.h" />
     <ClInclude Include="Graphics\TextureHelper.h" />
     <ClInclude Include="Renderer.h" />
