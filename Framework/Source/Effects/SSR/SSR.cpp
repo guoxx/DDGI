@@ -25,15 +25,20 @@ namespace Falcor
 
     ScreenSpaceReflection::~ScreenSpaceReflection() = default;
 
-    ScreenSpaceReflection::ScreenSpaceReflection() : RenderPass("ScreenSpaceReflection")
+    ScreenSpaceReflection::ScreenSpaceReflection(int32_t width, int32_t height) : RenderPass("ScreenSpaceReflection")
     {
-        init();
+        init(width, height);
         createGraphicsResources();
     }
 
     ScreenSpaceReflection::SharedPtr ScreenSpaceReflection::create(const Dictionary& dict)
     {
-        ScreenSpaceReflection* pSSR = new ScreenSpaceReflection();
+        return create(dict["width"], dict["height"]);
+    }
+
+    ScreenSpaceReflection::SharedPtr ScreenSpaceReflection::create(uint32_t width, uint32_t height)
+    {
+        ScreenSpaceReflection* pSSR = new ScreenSpaceReflection(width, height);
         return ScreenSpaceReflection::SharedPtr(pSSR);
     }
 
@@ -87,8 +92,35 @@ namespace Falcor
         }
     }
 
-    void ScreenSpaceReflection::init()
+    void ScreenSpaceReflection::onResize(uint32_t width, uint32_t height)
     {
+        Fbo::Desc tempFboDesc;
+        tempFboDesc.setColorTarget(0, ResourceFormat::RGBA16Float);
+        mpTempFbo = FboHelper::create2D(width, height, tempFboDesc);
+
+        mpHistoryTex = Texture::create2D(width, height, ResourceFormat::RGBA16Float, 1, 1, nullptr,
+                                         ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget);
+
+#ifdef DEBUG_SSR
+        Fbo::Desc desc;
+        desc.setColorTarget(0, ResourceFormat::RGBA16Float, true);
+        mDebugFbo = FboHelper::create2D(width, height, desc);
+
+        if (mDebugPixel.x < 0)
+        {
+            // initialize to screen center
+            mDebugPixel.x = mDebugFbo->getWidth() / 2;
+            mDebugPixel.y = mDebugFbo->getHeight() / 2;
+        }
+        mDebugPixel.x = std::max<int>(0, std::min<int>(mDebugFbo->getWidth() - 1, mDebugPixel.x));
+        mDebugPixel.y = std::max<int>(0, std::min<int>(mDebugFbo->getHeight() - 1, mDebugPixel.y));
+#endif
+    }
+
+    void ScreenSpaceReflection::init(int32_t width, int32_t height)
+    {
+        mpTAA = TemporalAA::create();
+
         DepthStencilState::Desc dsDesc;
         dsDesc.setDepthTest(false).setDepthWriteMask(false);
         DepthStencilState::SharedPtr pDepthStencilState = DepthStencilState::create(dsDesc);
@@ -100,6 +132,8 @@ namespace Falcor
         mpPipelineState = GraphicsState::create();
         mpPipelineState->setDepthStencilState(pDepthStencilState);
         mpPipelineState->setVao(pVao);    
+
+        onResize(width, height);
     }
 
     void ScreenSpaceReflection::createGraphicsResources()
@@ -141,7 +175,10 @@ namespace Falcor
         mBindLocations.pointSampler = pParamBlockReflector->getResourceBinding("gPointSampler");
         mBindLocations.HZBTex = pParamBlockReflector->getResourceBinding("gHZBTex");
         mBindLocations.normalTex = pParamBlockReflector->getResourceBinding("gNormalTex");
+        mBindLocations.diffuseOpacityTex = pParamBlockReflector->getResourceBinding("gDiffuseOpacityTex");
+        mBindLocations.specRoughTex = pParamBlockReflector->getResourceBinding("gSpecRoughTex");
         mBindLocations.colorTex = pParamBlockReflector->getResourceBinding("gColorTex");
+        mBindLocations.historyTex = pParamBlockReflector->getResourceBinding("gHistoryTex");
 
 #ifdef DEBUG_SSR
         mpDebugData = TypedBuffer<glm::vec4>::create(4096, ResourceBindFlags::UnorderedAccess);
@@ -152,15 +189,21 @@ namespace Falcor
         const Texture::SharedPtr& pColorIn,
         const Texture::SharedPtr& pDepthTexture,
         const Texture::SharedPtr& pHZBTexture,
-        const Texture::SharedPtr& pNormalTexture)
+        const Texture::SharedPtr& pNormalTexture,
+        const Texture::SharedPtr& pDiffuseOpacityTexture,
+        const Texture::SharedPtr& pSpecRoughTexture)
     {
         ParameterBlock* pDefaultBlock = mpProgVars->getDefaultBlock().get();
         pDefaultBlock->setSampler(mBindLocations.pointSampler, 0, mpPointSampler);
         pDefaultBlock->setSrv(mBindLocations.colorTex, 0, pColorIn->getSRV());
         pDefaultBlock->setSrv(mBindLocations.HZBTex, 0, pHZBTexture->getSRV());
         pDefaultBlock->setSrv(mBindLocations.normalTex, 0, pNormalTexture->getSRV());
+        pDefaultBlock->setSrv(mBindLocations.diffuseOpacityTex, 0, pDiffuseOpacityTexture->getSRV());
+        pDefaultBlock->setSrv(mBindLocations.specRoughTex, 0, pSpecRoughTexture->getSRV());
+        pDefaultBlock->setSrv(mBindLocations.historyTex, 0, mpHistoryTex->getSRV());
 
         // Update value of constants
+        mConstantData.gFrameCount += 1;
         mConstantData.gInvProjMat = glm::inverse(pCamera->getProjMatrix());
         mConstantData.gViewMat = pCamera->getViewMatrix();
         const float w = float(pDepthTexture->getWidth()), h = float(pDepthTexture->getHeight());
@@ -199,15 +242,20 @@ namespace Falcor
         const Texture::SharedPtr& pDepthTexture,
         const Texture::SharedPtr& pHZBTexture,
         const Texture::SharedPtr& pNormalTexture,
+        const Texture::SharedPtr& pDiffuseOpacityTexture,
+        const Texture::SharedPtr& pSpecRoughTexture,
+        const Texture::SharedPtr& pMotionVecTexture,
         const Fbo::SharedPtr& pFbo)
     {
 #ifdef DEBUG_SSR
-        setupDebugFbo(pRenderContext, pDepthTexture->getWidth(), pDepthTexture->getHeight());
+        pRenderContext->clearUAV(mDebugFbo->getColorTexture(0)->getUAV().get(), glm::vec4(0.0f));
+        pRenderContext->clearUAV(mpDebugData->getUAV().get(), glm::vec4(0.0f));
 #endif
 
-        setVarsData(pCamera, pColorIn, pDepthTexture, pHZBTexture, pNormalTexture);
+        setVarsData(pCamera, pColorIn, pDepthTexture, pHZBTexture, pNormalTexture, pDiffuseOpacityTexture, pSpecRoughTexture);
 
-        mpPipelineState->setFbo(pFbo, true);
+        mpPipelineState->setProgram(mpProgram);
+        mpPipelineState->setFbo(mpTempFbo, true);
 
         pRenderContext->pushGraphicsState(mpPipelineState);
         pRenderContext->pushGraphicsVars(mpProgVars);
@@ -221,32 +269,13 @@ namespace Falcor
             pRenderContext->blit(mDebugFbo->getColorTexture(0)->getSRV(), pFbo->getColorTexture(0)->getRTV());
         }
 #endif
+
+        pRenderContext->getGraphicsState()->pushFbo(pFbo);
+        mpTAA->execute(pRenderContext, mpTempFbo->getColorTexture(0), mpHistoryTex, pMotionVecTexture);
+        pRenderContext->getGraphicsState()->popFbo();
+
+        pRenderContext->blit(pFbo->getColorTexture(0)->getSRV(), mpHistoryTex->getRTV());
     }
-
-#ifdef DEBUG_SSR
-    void ScreenSpaceReflection::setupDebugFbo(RenderContext* pRenderContext, int32_t w, int32_t h)
-    {
-        if (!mDebugFbo ||
-            (mDebugFbo->getWidth() != w || mDebugFbo->getHeight() != h))
-        {
-            Fbo::Desc desc;
-            desc.setColorTarget(0, ResourceFormat::RGBA16Float, true);
-            mDebugFbo = FboHelper::create2D(w, h, desc);
-
-            if (mDebugPixel.x < 0)
-            {
-                // initialize to screen center
-                mDebugPixel.x = mDebugFbo->getWidth() / 2;
-                mDebugPixel.y = mDebugFbo->getHeight() / 2;
-            }
-            mDebugPixel.x = std::max<int>(0, std::min<int>(mDebugFbo->getWidth() - 1, mDebugPixel.x));
-            mDebugPixel.y = std::max<int>(0, std::min<int>(mDebugFbo->getHeight() - 1, mDebugPixel.y));
-        }
-
-        pRenderContext->clearUAV(mDebugFbo->getColorTexture(0)->getUAV().get(), glm::vec4(0.0f));
-        pRenderContext->clearUAV(mpDebugData->getUAV().get(), glm::vec4(0.0f));
-    }
-#endif
 
     // TODO: implementation
     RenderPassReflection ScreenSpaceReflection::reflect() const

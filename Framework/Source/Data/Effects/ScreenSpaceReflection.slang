@@ -1,4 +1,7 @@
+#include "HostDeviceSharedMacros.h"
+
 __import Helpers;
+__import BRDF;
 
 cbuffer PerFrameCB
 {
@@ -12,6 +15,8 @@ cbuffer PerFrameCB
     float gNearZ;
     float gFarZ;
     float gHZBMipCount;
+
+    float gFrameCount;
     float gZThickness;
     float gRayStrideDDA;
     float gJitterFraction;
@@ -23,6 +28,9 @@ cbuffer PerFrameCB
 Texture2D gColorTex;
 Texture2D gHZBTex;
 Texture2D gNormalTex;
+Texture2D gDiffuseOpacityTex;
+Texture2D gSpecRoughTex;
+Texture2D gHistoryTex;
 
 SamplerState gPointSampler;
 
@@ -594,6 +602,55 @@ bool traceHiZ(float3 csOrigin,
     return hit && mipLevel < 0;
 }
 
+bool rayTrace(float3 rayOrigin, float3 rayDir,
+              out float2 hitPixel, out float3 hitPosCS, float3 debugColor)
+{
+#ifdef HIZ_RAY_TRACE
+    bool bHit = traceHiZ(rayOrigin, 
+        rayDir,
+        gProjToPixelMat,
+        gHZBTex,
+        gPointSampler,
+        gZBufferSize,
+        gHZBSize,
+        gZThickness,
+        gNearZ,
+        gJitterFraction,
+        gMaxStepsHZB,
+        gMaxRayTraceDistance,
+        hitPixel,
+        hitPosCS,
+        debugColor);
+#else
+    bool bHit = traceScreenSpaceRay(rayOrigin, 
+        rayDir,
+        gProjToPixelMat,
+        gHZBTex,
+        gPointSampler,
+        gZBufferSize.xy,
+        gZThickness,
+        gNearZ,
+        gRayStrideDDA,
+        gJitterFraction,
+        gMaxStepsDDA,
+        gMaxRayTraceDistance,
+        hitPixel,
+        hitPosCS,
+        debugColor);
+#endif
+
+    if (bHit)
+    {
+        float2 uv = hitPixel * gZBufferSize.zw;
+        float3 N = gNormalTex.SampleLevel(gPointSampler, uv, 0).xyz * 2 - 1;
+        N = mul(float4(N, 0), gViewMat).xyz;
+        // Ray hit upper hemisphere
+        return dot(N, rayDir) < 0;
+    }
+
+    return false;
+}
+
 struct VsOut
 {
     float2 texC : TEXCOORD;
@@ -620,64 +677,66 @@ float4 psMain(VsOut pIn) : SV_TARGET0
     if (isEqualToFarPlane(linearZ))
         return float4(0, 0, 0, 1);
 
-    const float3 normalWS = gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz * 2 - 1;
-    const float3 normalCS = mul(float4(normalWS, 0), gViewMat).xyz;
+    float3 normal = gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz * 2 - 1;
+    normal = mul(float4(normal, 0), gViewMat).xyz;
 
     const float3 posCS = pIn.rayDir / pIn.rayDir.z * linearZ;
-    const float3 viewRayCS = normalize(posCS);
-    const float3 reflectRayCS = reflect(-viewRayCS, normalCS);
+    const float3 Wo = -normalize(posCS);
 
-    float2 hitPixel;
-    float3 hitPosCS;
-    float3 debugColor;
+    float4 specRough = gSpecRoughTex.SampleLevel(gPointSampler, pIn.texC, 0);
+    float3 specularColor = specRough.rgb;
+    float linearRoughness = specRough.a;
+    float alpha = linearRoughness * linearRoughness;
 
-#ifdef HIZ_RAY_TRACE
-    bool bHit = traceHiZ(posCS, 
-        reflectRayCS,
-        gProjToPixelMat,
-        gHZBTex,
-        gPointSampler,
-        gZBufferSize,
-        gHZBSize,
-        gZThickness,
-        gNearZ,
-        gJitterFraction,
-        gMaxStepsHZB,
-        gMaxRayTraceDistance,
-        hitPixel,
-        hitPosCS,
-        debugColor);
-#else
-    bool bHit = traceScreenSpaceRay(posCS, 
-        reflectRayCS,
-        gProjToPixelMat,
-        gHZBTex,
-        gPointSampler,
-        gZBufferSize.xy,
-        gZThickness,
-        gNearZ,
-        gRayStrideDDA,
-        gJitterFraction,
-        gMaxStepsDDA,
-        gMaxRayTraceDistance,
-        hitPixel,
-        hitPosCS,
-        debugColor);
-#endif
+    uint rndSeed = rand_init(asuint(pIn.pos.x * gFrameCount), asuint(pIn.pos.y * gFrameCount));
+
+    float3 result = 0;
+    int iterCnt = 4;
+    for (int i = 0; i < iterCnt; ++i)
+    {
+        float2 rndVal = float2(rand_next(rndSeed), rand_next(rndSeed));
+        float3 Wh = getGGXMicrofacet(rndVal, normal, alpha);
+        const float3 Wi = reflect(Wo, Wh);
+        if (dot(Wi, normal) <= 0) {
+            continue;
+        }
+
+        float2 hitPixel;
+        float3 hitPosCS;
+        float3 debugColor;
+        if (rayTrace(posCS, Wi, hitPixel, hitPosCS, debugColor))
+        {
+            float NdotL = saturate(dot(normal, Wi));
+            float NdotV = saturate(dot(normal, Wo));
+            float NdotH = saturate(dot(normal, Wh));
+            float LdotH = saturate(dot(Wi, Wh));
+
+            // Probability in terms of Wi vector, NDF term was cancelled by specular BRDF
+            float pdf = NdotH / (4 * LdotH);
+
+            float G = evalSmithGGX(NdotL, NdotV, alpha);
+            float3 F = fresnelSchlick(specularColor, 1, LdotH);
+
+            // 4 * NdotL * NdotV cancelled by G term
+            // NDF cancelled by pdf
+            float3 specularBrdf = G * F;
+            float3 sampleWeight = 1.0/iterCnt;
+
+            float2 uv = hitPixel * gZBufferSize.zw;
+            float3 Li = gColorTex.SampleLevel(gPointSampler, uv, 0).xyz;
+
+            result.xyz += Li * specularBrdf * NdotL / pdf * sampleWeight;
+        }
 
 #if defined(DEBUG_INTERSECTION_RESULT)
-    return float4(debugColor, 1);
+        return float4(debugColor, 1);
 #elif  defined(DEBUG_RAYMARCH_CNT)
-    return float4(debugColor, 1);
+        return float4(debugColor, 1);
 #endif
+    }
 
-    if (bHit)
-    {
-        float2 uv = hitPixel * gZBufferSize.zw;
-        return gColorTex.SampleLevel(gPointSampler, uv, 0);
-    }
-    else
-    {
-        return float4(0, 0, 0, 1);
-    }
+    //float3 historyResult = gHistoryTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
+    result += gColorTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
+    //result = result / gFrameCount + historyResult * (1 - 1.0/gFrameCount);
+    return float4(result, 1);
 }

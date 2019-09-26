@@ -134,7 +134,7 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     initShadowPass(pTargetFbo->getWidth(), pTargetFbo->getHeight());
     initAA(pSample);
 
-    mpSSRPass = ScreenSpaceReflection::create();
+    mpSSRPass = ScreenSpaceReflection::create(pTargetFbo->getWidth(), pTargetFbo->getHeight());
 
     mpHZBPass = HierarchicalZBuffer::create();
 
@@ -291,9 +291,12 @@ void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedP
         GPU_EVENT(pContext, "SSR");
         Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
         Texture::SharedPtr pNormal = mpResolveFbo->getColorTexture(1);
+        Texture::SharedPtr pDiffuseOpacity = mpGBufferFbo->getColorTexture(4);
+        Texture::SharedPtr pSpecRough = mpGBufferFbo->getColorTexture(5);
+        Texture::SharedPtr pMotionVec = mpGBufferFbo->getColorTexture(7);
         Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
         const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mpSSRPass->execute(pContext, pCamera, pColorIn, pDepth, mpHZBTexture, pNormal, mpSSRFbo);
+        mpSSRPass->execute(pContext, pCamera, pColorIn, pDepth, mpHZBTexture, pNormal, pDiffuseOpacity, pSpecRough, pMotionVec, mpSSRFbo);
 
         pContext->blit(mpSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
     }
@@ -501,6 +504,8 @@ void HybridRenderer::onResizeSwapChain(SampleCallbacks* pSample, uint32_t width,
     Fbo::Desc fboDesc;
     fboDesc.setColorTarget(0, ResourceFormat::RGBA8UnormSrgb);
     mpPostProcessFbo = FboHelper::create2D(width, height, fboDesc);
+
+    mpSSRPass->onResize(width, height);
 
     Fbo::Desc ssrFboDesc;
     ssrFboDesc.setColorTarget(0, ResourceFormat::RGBA32Float);
