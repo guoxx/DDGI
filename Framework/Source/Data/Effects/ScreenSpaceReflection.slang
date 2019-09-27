@@ -76,6 +76,11 @@ void swap(in out float a, in out float b)
     b = tmp;
 }
 
+float3 reflect(float3 Wi, float3 N)
+{
+    return 2 * dot(Wi, N) * N - Wi;
+}
+
 bool isEqual(int2 a, int2 b)
 {
     return a.x == b.x && a.y == b.y;

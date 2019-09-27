@@ -3,6 +3,9 @@
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
+    <ClCompile Include="LightFieldProbe.cpp" />
+    <ClCompile Include="GBufferShading.cpp" />
+    <ClCompile Include="OctahedralMapping.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Data">
@@ -11,5 +14,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HybridRenderer.h" />
+    <ClInclude Include="LightFieldProbe.h" />
+    <ClInclude Include="GBufferShading.h" />
+    <ClInclude Include="OctahedralMapping.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\GBufferShading.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\OctahedralMapping.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\Octahedral.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\LightFieldProbeViewer.ps.slang">
+      <Filter>Data</Filter>
+    </None>
   </ItemGroup>
 </Project>

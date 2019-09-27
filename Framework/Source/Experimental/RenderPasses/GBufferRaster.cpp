@@ -134,7 +134,7 @@ void GBufferRaster::setCullMode(RasterizerState::CullMode mode)
     mRaster.pState->setDepthStencilState(DepthStencilState::create(dsDesc));
 }
 
-void GBufferRaster::execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo)
+void GBufferRaster::execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Camera::SharedConstPtr pCamera)
 {
     if (mpSceneRenderer == nullptr)
     {
@@ -148,7 +148,8 @@ void GBufferRaster::execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo)
 
     pContext->pushGraphicsState(mRaster.pState);
     pContext->pushGraphicsVars(mRaster.pVars);
-    mpSceneRenderer->renderScene(pContext);
+    const Camera* pValidCamera = pCamera ? pCamera.get() : mpSceneRenderer->getScene()->getActiveCamera().get();
+    mpSceneRenderer->renderScene(pContext, pValidCamera);
     pContext->popGraphicsVars();
     pContext->popGraphicsState();
 
@@ -165,5 +166,5 @@ void GBufferRaster::execute(RenderContext* pContext, const RenderData* pRenderDa
     }
 
     pContext->clearFbo(pFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::All);
-    execute(pContext, pFbo);
+    execute(pContext, pFbo, nullptr);
 }

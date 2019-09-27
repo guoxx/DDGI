@@ -328,6 +328,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 int main(int argc, char** argv)
 #endif
 {
+    ::LoadLibraryA("C:\\bin\\RenderDoc_1.4_64\\renderdoc.dll");
+
     LightProbeViewer::UniquePtr pRenderer = std::make_unique<LightProbeViewer>();
 
     SampleConfig config;

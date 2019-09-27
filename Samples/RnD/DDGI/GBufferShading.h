@@ -30,15 +30,16 @@
 
 using namespace Falcor;
 
-class GBufferRaster : public RenderPass, inherit_shared_from_this<RenderPass, GBufferRaster>
+class GBufferShading : public RenderPass, inherit_shared_from_this<RenderPass, GBufferShading>
 {
 public:
-    using SharedPtr = std::shared_ptr<GBufferRaster>;
+    using SharedPtr = std::shared_ptr<GBufferShading>;
 
     static SharedPtr create(const Dictionary& dict = {});
-    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil = true);
 
-    void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Camera::SharedConstPtr pCamera);
+    void setCamera(Camera::SharedConstPtr pCamera) { mpCamera = pCamera; }
+
+    void execute(RenderContext* pContext, const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture, const Fbo::SharedPtr& pTargetFbo);
 
     RenderPassReflection reflect() const override;
     void execute(RenderContext* pContext, const RenderData* pRenderData) override;
@@ -46,20 +47,24 @@ public:
     Dictionary getScriptingDictionary() const override;
     void onResize(uint32_t width, uint32_t height) override;
     void setScene(const Scene::SharedPtr& pScene) override;
-    std::string getDesc(void) override { return "Raster GBuffer generation"; }
+    std::string getDesc(void) override { return "GBuffer lighting"; }
 private:
-    GBufferRaster();
-    void setCullMode(RasterizerState::CullMode mode);
+    GBufferShading();
     bool parseDictionary(const Dictionary& dict);
 
-    SceneRenderer::SharedPtr                mpSceneRenderer;
-    RasterizerState::CullMode               mCullMode = RasterizerState::CullMode::Back;
+    void setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture);
 
-    // Rasterization resources
+    Camera::SharedConstPtr mpCamera;
+    Scene::SharedConstPtr mpScene;
+    ConstantBuffer::SharedPtr mpInternalPerFrameCB;
     struct
     {
-        GraphicsState::SharedPtr pState;
-        GraphicsProgram::SharedPtr pProgram;
-        GraphicsVars::SharedPtr pVars;
-    } mRaster;
+        int32_t cameraDataOffset;
+        int32_t lightArrayOffset;
+        int32_t lightCountOffset;
+    } mOffsetInCB;
+
+    GraphicsState::SharedPtr mpState;
+    GraphicsProgram::SharedPtr mpProgram;
+    GraphicsVars::SharedPtr mpVars;
 };

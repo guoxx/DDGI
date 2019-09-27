@@ -53,10 +53,17 @@ const Gui::DropdownList renderPathList =
 void HybridRenderer::initShadowPass(uint32_t windowWidth, uint32_t windowHeight)
 {
     mpShadowPass = CascadedShadowMaps::create(mpSceneRenderer->getScene()->getLight(0), 2048, 2048, windowWidth, windowHeight, mpSceneRenderer->getScene()->shared_from_this());
-    mpShadowPass->setFilterMode(CsmFilterEvsm4);
+    mpShadowPass->setFilterMode(CsmFilterHwPcf);
     mpShadowPass->setVsmLightBleedReduction(0.3f);
     mpShadowPass->setVsmMaxAnisotropy(4);
     mpShadowPass->setEvsmBlur(7, 3);
+}
+
+void HybridRenderer::initLightFieldProbes(const Scene::SharedPtr& pScene)
+{
+    mpLightFieldProbe = LightFieldProbe::create();
+    mpLightFieldProbe->setScene(pScene);
+    mpLightFieldProbe->setPosition(pScene->getCenter());
 }
 
 void HybridRenderer::setSceneSampler(uint32_t maxAniso)
@@ -152,6 +159,8 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpToneMapper->setExposureValue(-1);
 
     pSample->setCurrentTime(0);
+
+    initLightFieldProbes(pScene);
 }
 
 void HybridRenderer::resetScene()
@@ -313,7 +322,7 @@ void HybridRenderer::renderGBuffer(RenderContext* pContext, Fbo::SharedPtr pTarg
 {
     PROFILE("GBuffer");
     GPU_EVENT(pContext, "GBuffer");
-    mpGBufferRaster->execute(pContext, pTargetFbo);
+    mpGBufferRaster->execute(pContext, pTargetFbo, nullptr);
 }
 
 void HybridRenderer::deferredLighting(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Texture::SharedPtr visibilityTexture, Fbo::SharedPtr pTargetFbo)
@@ -421,6 +430,12 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             mpSceneRenderer->update(pSample->getCurrentTime());
         }
 
+        {
+            PROFILE("updateLightFieldProbe");
+            GPU_EVENT(pRenderContext, "updateLightFieldProbe");
+            mpLightFieldProbe->update(pRenderContext);
+        }
+
         depthPass(pRenderContext, mpDepthPassFbo);
         shadowPass(pRenderContext, mpDepthPassFbo->getDepthStencilTexture());
         if (mRenderPath == RenderPath::Deferred)
@@ -435,6 +450,13 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             forwardLightingPass(pRenderContext, mpMainFbo);
         }
         renderSkyBox(pRenderContext, mpMainFbo);
+
+        {
+            PROFILE("lightFieldProbeViewer");
+            GPU_EVENT(pRenderContext, "lightFieldProbeViewer");
+            mpLightFieldProbe->debugDraw(pRenderContext, mpSceneRenderer->getScene()->getActiveCamera(), mpMainFbo);
+        }
+
         postProcess(pRenderContext, pTargetFbo);
 
         endFrame(pRenderContext);

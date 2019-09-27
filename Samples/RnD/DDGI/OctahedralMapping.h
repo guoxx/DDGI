@@ -30,36 +30,28 @@
 
 using namespace Falcor;
 
-class GBufferRaster : public RenderPass, inherit_shared_from_this<RenderPass, GBufferRaster>
+class OctahedralMapping : public RenderPass, inherit_shared_from_this<RenderPass, OctahedralMapping>
 {
 public:
-    using SharedPtr = std::shared_ptr<GBufferRaster>;
+    using SharedPtr = std::shared_ptr<OctahedralMapping>;
 
     static SharedPtr create(const Dictionary& dict = {});
-    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil = true);
 
-    void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Camera::SharedConstPtr pCamera);
+    void execute(RenderContext* pContext,
+                 const Texture::SharedPtr& pFacePosX, const Texture::SharedPtr pFaceNegX,
+                 const Texture::SharedPtr& pFacePosY, const Texture::SharedPtr pFaceNegY,
+                 const Texture::SharedPtr& pFacePosZ, const Texture::SharedPtr pFaceNegZ,
+                 const Fbo::SharedPtr& pTargetFbo);
 
     RenderPassReflection reflect() const override;
     void execute(RenderContext* pContext, const RenderData* pRenderData) override;
-    void renderUI(Gui* pGui, const char* uiGroup) override;
-    Dictionary getScriptingDictionary() const override;
-    void onResize(uint32_t width, uint32_t height) override;
-    void setScene(const Scene::SharedPtr& pScene) override;
-    std::string getDesc(void) override { return "Raster GBuffer generation"; }
+
+    std::string getDesc(void) override { return "Octahedral Mapping"; }
+
 private:
-    GBufferRaster();
-    void setCullMode(RasterizerState::CullMode mode);
-    bool parseDictionary(const Dictionary& dict);
+    OctahedralMapping();
 
-    SceneRenderer::SharedPtr                mpSceneRenderer;
-    RasterizerState::CullMode               mCullMode = RasterizerState::CullMode::Back;
-
-    // Rasterization resources
-    struct
-    {
-        GraphicsState::SharedPtr pState;
-        GraphicsProgram::SharedPtr pProgram;
-        GraphicsVars::SharedPtr pVars;
-    } mRaster;
+    GraphicsState::SharedPtr mpState;
+    GraphicsProgram::SharedPtr mpProgram;
+    GraphicsVars::SharedPtr mpVars;
 };

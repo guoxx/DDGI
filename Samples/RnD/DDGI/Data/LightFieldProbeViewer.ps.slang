@@ -25,41 +25,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-#pragma once
-#include "Falcor.h"
+__import DefaultVS;
+__import Helpers;
+__import Shading;
+__import Octahedral;
 
-using namespace Falcor;
+Texture2D gColorTex;
+SamplerState gLinearSampler;
 
-class GBufferRaster : public RenderPass, inherit_shared_from_this<RenderPass, GBufferRaster>
+float4 main(VertexOut vOut) : SV_TARGET
 {
-public:
-    using SharedPtr = std::shared_ptr<GBufferRaster>;
+    ShadingData sd = prepareShadingData(vOut, gMaterial, gCamera.posW);
 
-    static SharedPtr create(const Dictionary& dict = {});
-    static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil = true);
-
-    void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Camera::SharedConstPtr pCamera);
-
-    RenderPassReflection reflect() const override;
-    void execute(RenderContext* pContext, const RenderData* pRenderData) override;
-    void renderUI(Gui* pGui, const char* uiGroup) override;
-    Dictionary getScriptingDictionary() const override;
-    void onResize(uint32_t width, uint32_t height) override;
-    void setScene(const Scene::SharedPtr& pScene) override;
-    std::string getDesc(void) override { return "Raster GBuffer generation"; }
-private:
-    GBufferRaster();
-    void setCullMode(RasterizerState::CullMode mode);
-    bool parseDictionary(const Dictionary& dict);
-
-    SceneRenderer::SharedPtr                mpSceneRenderer;
-    RasterizerState::CullMode               mCullMode = RasterizerState::CullMode::Back;
-
-    // Rasterization resources
-    struct
-    {
-        GraphicsState::SharedPtr pState;
-        GraphicsProgram::SharedPtr pProgram;
-        GraphicsVars::SharedPtr pVars;
-    } mRaster;
-};
+    float3 dir = sd.N;
+    float2 ndc = octEncode(dir);
+    float2 uv = NdcToUv(ndc);
+    return gColorTex.SampleLevel(gLinearSampler, uv, 0);
+}

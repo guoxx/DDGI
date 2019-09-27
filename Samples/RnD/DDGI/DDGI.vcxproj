@@ -12,7 +12,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
+    <ClCompile Include="GBufferShading.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
+    <ClCompile Include="LightFieldProbe.cpp" />
+    <ClCompile Include="OctahedralMapping.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Framework\Source\Falcor.vcxproj">
@@ -20,7 +23,16 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="GBufferShading.h" />
     <ClInclude Include="HybridRenderer.h" />
+    <ClInclude Include="LightFieldProbe.h" />
+    <ClInclude Include="OctahedralMapping.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\GBufferShading.slang" />
+    <None Include="Data\LightFieldProbeViewer.ps.slang" />
+    <None Include="Data\Octahedral.slang" />
+    <None Include="Data\OctahedralMapping.slang" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3373CF0E-C24A-4C74-87B6-59243DBA03E1}</ProjectGuid>

@@ -32,6 +32,7 @@
 #include "Experimental/RenderPasses/GBufferRaster.h"
 #include "Experimental/RenderPasses/GBufferLightingPass.h"
 #include "Experimental/RenderPasses/ForwardLightingPass.h"
+#include "LightFieldProbe.h"
 
 using namespace Falcor;
 
@@ -67,6 +68,8 @@ private:
     ToneMapping::SharedPtr mpToneMapper;
     SSAO::SharedPtr mpSSAO;
     FXAA::SharedPtr mpFXAA;
+
+    LightFieldProbe::SharedPtr mpLightFieldProbe;
 
     //  The Temporal Anti-Aliasing Pass.
     class
@@ -115,6 +118,7 @@ private:
     void initSkyBox(const std::string& name);
     void initShadowPass(uint32_t windowWidth, uint32_t windowHeight);
     void initAA(SampleCallbacks* pSample);
+    void initLightFieldProbes(const Scene::SharedPtr& pScene);
     void updateLightProbe(const LightProbe::SharedPtr& pLight);
 
 	SceneRenderer::SharedPtr mpSceneRenderer;
@@ -159,7 +163,7 @@ private:
     bool mPerMaterialShader = false;
     bool mUseCsSkinning = false;
     bool mVisualizeCascades = false;
-    bool mEnableSSAO = true;
+    bool mEnableSSAO = false;
     bool mEnableSSR = true;
     // TODO
     bool mEnableTransparent = false;

@@ -394,11 +394,6 @@ float4 reconstructPositionFromDepth(Texture2D depthTex, SamplerState texSampler,
     return reconstructPositionFromDepth(z, uv, mInvProj);
 }
 
-float3 reflect(float3 Wi, float3 N)
-{
-    return 2 * dot(Wi, N) * N - Wi;
-}
-
 // Assume P0 is within the rect (P1 - P0 is never zero when clipping)
 // Result can be used as lerp(P0, P1, alpha)
 float clipLineByRect(float2 P0, float2 P1, float4 rect)
@@ -414,6 +409,16 @@ float clipLineByRect(float2 P0, float2 P1, float4 rect)
         alpha = max(alpha, (P1.x - ((P1.x > xMax) ? xMax : xMin)) / (P1.x - P0.x));
 
     return 1 - alpha;
+}
+
+float2 UvToNdc(float2 uv)
+{
+    return uv * float2(2, -2) + float2(-1, 1);
+}
+
+float2 NdcToUv(float2 ndc)
+{
+    return ndc * float2(0.5, -0.5) + float2(0.5, 0.5);
 }
 
 #endif //_FALCOR_HELPERS_SLANG_

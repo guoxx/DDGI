@@ -177,6 +177,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 {
     PathTracer::UniquePtr pRenderer = std::make_unique<PathTracer>();
     SampleConfig config;
+    config.windowDesc.width = 1600;
+    config.windowDesc.height = 900;
     config.windowDesc.title = "Path Tracer";
     config.windowDesc.resizableWindow = true;
     config.freezeTimeOnStartup = true;
