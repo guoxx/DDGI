@@ -78,7 +78,12 @@ PsOut PSMain(VsOut pIn)
     // Does this g-buffer pixel contain a valid piece of geometry?  (0 in pos.w for invalid)
     bool isGeometryValid = (posW.w != 0.0f);
     if (!isGeometryValid) {
-        discard;
+        PsOut pOut;
+        pOut.radiance = 0;
+        pOut.normal = 0;
+        pOut.distance = 10000;
+
+        return pOut;
     }
 
     // Extract and compute some material and geometric parameters
@@ -113,7 +118,7 @@ PsOut PSMain(VsOut pIn)
             shadowFactor = visibilityBuffer.Load(int3(pixelCrd.xy, 0)).r;
             shadowFactor *= sd.opacity;
         }
-        finalColor.rgb += evalMaterial(sd, gLights[l], shadowFactor).color.rgb;
+        finalColor.rgb += evalMaterial(sd, gLights[l], shadowFactor).diffuse.rgb;
     }
 
     // Add the emissive component
@@ -126,7 +131,7 @@ PsOut PSMain(VsOut pIn)
 
     PsOut pOut;
     pOut.radiance = finalColor;
-    pOut.normal = float4(normW, 1);
+    pOut.normal = float4(normW*0.5+0.5, 1);
     pOut.distance = length(posW.xyz - gCamera.posW.xyz);
 
     return pOut;

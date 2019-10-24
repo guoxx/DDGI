@@ -25,24 +25,34 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-__import DefaultVS;
-__import Helpers;
-__import Shading;
-__import Octahedral;
+#pragma once
+#include "Falcor.h"
 
-cbuffer PerInstanceData
+using namespace Falcor;
+
+class DownscalePass : public RenderPass, inherit_shared_from_this<RenderPass, DownscalePass>
 {
-    int gProbeIdx;
-}
+public:
+    using SharedPtr = std::shared_ptr<DownscalePass>;
 
-Texture2DArray gColorTex;
-SamplerState gLinearSampler;
+    static SharedPtr create(const Dictionary& dict = {});
 
-float4 main(VertexOut vOut) : SV_TARGET
-{
-    ShadingData sd = prepareShadingData(vOut, gMaterial, gCamera.posW);
+    void execute(RenderContext* pContext,
+                 const Texture::SharedPtr& pSrcTex,
+                 int firstArraySlice,
+                 const Fbo::SharedPtr& pTargetFbo);
 
-    float3 dir = sd.N;
-    float2 uv = OctToUv(octEncode(dir));
-    return gColorTex.SampleLevel(gLinearSampler, float3(uv, gProbeIdx), 0);
-}
+    RenderPassReflection reflect() const override;
+    void execute(RenderContext* pContext, const RenderData* pRenderData) override;
+
+    std::string getDesc(void) override { return "Downscale Pass"; }
+
+private:
+    DownscalePass();
+
+    ProgramReflection::BindLocation mSourceTexBindingLoc;
+
+    GraphicsState::SharedPtr mpState;
+    GraphicsProgram::SharedPtr mpProgram;
+    GraphicsVars::SharedPtr mpVars;
+};

@@ -16,6 +16,16 @@ float2 signNotZero(float2 value)
     return float2(signNotZero(value.x), signNotZero(value.y));
 }
 
+float2 UvToOct(in float2 uv)
+{
+    return uv * 2 - 1;
+}
+
+float2 OctToUv(in float2 o)
+{
+    return o * 0.5 + 0.5;
+}
+
 /** Assumes that v is a unit vector. The result is an octahedral vector on the [-1, +1] square. */
 float2 octEncode(in float3 v) {
     float l1norm = abs(v.x) + abs(v.y) + abs(v.z);

@@ -36,6 +36,7 @@ public:
     using SharedPtr = std::shared_ptr<GBufferRaster>;
 
     static SharedPtr create(const Dictionary& dict = {});
+    static SharedPtr create(RasterizerState::CullMode cullMode);
     static Fbo::SharedPtr createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil = true);
 
     void execute(RenderContext* pContext, Fbo::SharedPtr pGBufferFbo, Camera::SharedConstPtr pCamera);

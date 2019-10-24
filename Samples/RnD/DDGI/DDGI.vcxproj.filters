@@ -3,9 +3,11 @@
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
-    <ClCompile Include="LightFieldProbe.cpp" />
-    <ClCompile Include="GBufferShading.cpp" />
     <ClCompile Include="OctahedralMapping.cpp" />
+    <ClCompile Include="LightFieldProbeRayTracing.cpp" />
+    <ClCompile Include="DownscalePass.cpp" />
+    <ClCompile Include="LightFieldProbeVolume.cpp" />
+    <ClCompile Include="LightFieldProbeShading.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Data">
@@ -14,14 +16,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HybridRenderer.h" />
-    <ClInclude Include="LightFieldProbe.h" />
-    <ClInclude Include="GBufferShading.h" />
     <ClInclude Include="OctahedralMapping.h" />
+    <ClInclude Include="LightFieldProbeRayTracing.h" />
+    <ClInclude Include="DownscalePass.h" />
+    <ClInclude Include="LightFieldProbeVolume.h" />
+    <ClInclude Include="LightFieldProbeShading.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Data\GBufferShading.slang">
-      <Filter>Data</Filter>
-    </None>
     <None Include="Data\OctahedralMapping.slang">
       <Filter>Data</Filter>
     </None>
@@ -29,6 +30,18 @@
       <Filter>Data</Filter>
     </None>
     <None Include="Data\LightFieldProbeViewer.ps.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\LightFieldProbeRayTracing.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\LightFieldProbe.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\DownscalePass.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\LightFieldProbeShading.slang">
       <Filter>Data</Filter>
     </None>
   </ItemGroup>

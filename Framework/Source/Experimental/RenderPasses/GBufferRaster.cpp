@@ -67,6 +67,13 @@ GBufferRaster::SharedPtr GBufferRaster::create(const Dictionary& dict)
     return pPass->parseDictionary(dict) ? pPass : nullptr;
 }
 
+GBufferRaster::SharedPtr GBufferRaster::create(RasterizerState::CullMode cullMode)
+{
+    SharedPtr pPass = SharedPtr(new GBufferRaster);
+    pPass->setCullMode(cullMode);
+    return pPass;
+}
+
 Fbo::SharedPtr GBufferRaster::createGBufferFbo(int32_t w, int32_t h, bool hasDepthStencil)
 {
     Fbo::Desc desc;

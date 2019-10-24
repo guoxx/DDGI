@@ -61,9 +61,11 @@ void HybridRenderer::initShadowPass(uint32_t windowWidth, uint32_t windowHeight)
 
 void HybridRenderer::initLightFieldProbes(const Scene::SharedPtr& pScene)
 {
-    mpLightFieldProbe = LightFieldProbe::create();
-    mpLightFieldProbe->setScene(pScene);
-    mpLightFieldProbe->setPosition(pScene->getCenter());
+    mpLightProbeVolume = LightFieldProbeVolume::create();
+    mpLightProbeVolume->setScene(pScene);
+
+    mpLightProbeRayTracer = LightFieldProbeRayTracing::create();
+    mpLightProbeRayTracer->setScene(pScene);
 }
 
 void HybridRenderer::setSceneSampler(uint32_t maxAniso)
@@ -300,9 +302,9 @@ void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedP
         GPU_EVENT(pContext, "SSR");
         Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
         Texture::SharedPtr pNormal = mpResolveFbo->getColorTexture(1);
-        Texture::SharedPtr pDiffuseOpacity = mpGBufferFbo->getColorTexture(4);
-        Texture::SharedPtr pSpecRough = mpGBufferFbo->getColorTexture(5);
-        Texture::SharedPtr pMotionVec = mpGBufferFbo->getColorTexture(7);
+        Texture::SharedPtr pDiffuseOpacity = mpGBufferFbo->getColorTexture(GBufferRT::DIFFUSE_OPACITY);
+        Texture::SharedPtr pSpecRough = mpGBufferFbo->getColorTexture(GBufferRT::SPECULAR_ROUGHNESS);
+        Texture::SharedPtr pMotionVec = mpGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR);
         Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
         const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
         mpSSRPass->execute(pContext, pCamera, pColorIn, pDepth, mpHZBTexture, pNormal, pDiffuseOpacity, pSpecRough, pMotionVec, mpSSRFbo);
@@ -433,7 +435,7 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         {
             PROFILE("updateLightFieldProbe");
             GPU_EVENT(pRenderContext, "updateLightFieldProbe");
-            mpLightFieldProbe->update(pRenderContext);
+            mpLightProbeVolume->update(pRenderContext);
         }
 
         depthPass(pRenderContext, mpDepthPassFbo);
@@ -442,8 +444,8 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         {
             renderGBuffer(pRenderContext, mpGBufferFbo);
             deferredLighting(pRenderContext, mpGBufferFbo, mpShadowPass->getVisibilityBuffer(), mpMainFbo);
-            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(1), mpMainFbo->getColorTexture(1));
-            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(7), mpMainFbo->getColorTexture(2));
+            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(GBufferRT::NORMAL), mpMainFbo->getColorTexture(1));
+            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR), mpMainFbo->getColorTexture(2));
         }
         else
         {
@@ -452,9 +454,16 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         renderSkyBox(pRenderContext, mpMainFbo);
 
         {
+            PROFILE("lightFieldProbeRayTracing");
+            GPU_EVENT(pRenderContext, "lightFieldProbeRayTracing");
+            Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
+            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
+        }
+
+        {
             PROFILE("lightFieldProbeViewer");
             GPU_EVENT(pRenderContext, "lightFieldProbeViewer");
-            mpLightFieldProbe->debugDraw(pRenderContext, mpSceneRenderer->getScene()->getActiveCamera(), mpMainFbo);
+            mpLightProbeVolume->debugDraw(pRenderContext, mpSceneRenderer->getScene()->getActiveCamera(), mpMainFbo);
         }
 
         postProcess(pRenderContext, pTargetFbo);
@@ -781,6 +790,8 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 
             pGui->endGroup();
         }
+
+        mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
 
         mpToneMapper->renderUI(pGui, "Tone-Mapping");
 

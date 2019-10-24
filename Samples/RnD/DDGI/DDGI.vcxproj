@@ -12,9 +12,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DDGI.cpp" />
-    <ClCompile Include="GBufferShading.cpp" />
+    <ClCompile Include="DownscalePass.cpp" />
+    <ClCompile Include="LightFieldProbeShading.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
-    <ClCompile Include="LightFieldProbe.cpp" />
+    <ClCompile Include="LightFieldProbeVolume.cpp" />
+    <ClCompile Include="LightFieldProbeRayTracing.cpp" />
     <ClCompile Include="OctahedralMapping.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -23,13 +25,18 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GBufferShading.h" />
+    <ClInclude Include="DownscalePass.h" />
+    <ClInclude Include="LightFieldProbeShading.h" />
     <ClInclude Include="HybridRenderer.h" />
-    <ClInclude Include="LightFieldProbe.h" />
+    <ClInclude Include="LightFieldProbeVolume.h" />
+    <ClInclude Include="LightFieldProbeRayTracing.h" />
     <ClInclude Include="OctahedralMapping.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Data\GBufferShading.slang" />
+    <None Include="Data\DownscalePass.slang" />
+    <None Include="Data\LightFieldProbeShading.slang" />
+    <None Include="Data\LightFieldProbe.slang" />
+    <None Include="Data\LightFieldProbeRayTracing.slang" />
     <None Include="Data\LightFieldProbeViewer.ps.slang" />
     <None Include="Data\Octahedral.slang" />
     <None Include="Data\OctahedralMapping.slang" />

@@ -150,14 +150,14 @@ void GBufferLightingPass::setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture
 {
     mpScene->getActiveCamera()->setIntoConstantBuffer(mpInternalPerFrameCB.get(), "gCamera");
 
-    mpVars->setTexture("gPosTex", pGBufferFbo->getColorTexture(0));
-    mpVars->setTexture("gNormTex", pGBufferFbo->getColorTexture(1));
-    mpVars->setTexture("gBitangentTex", pGBufferFbo->getColorTexture(2));
-    mpVars->setTexture("gTexCoordTex", pGBufferFbo->getColorTexture(3));
-    mpVars->setTexture("gDiffuseOpacityTex", pGBufferFbo->getColorTexture(4));
-    mpVars->setTexture("gSpecRoughTex", pGBufferFbo->getColorTexture(5));
-    mpVars->setTexture("gEmissiveTex", pGBufferFbo->getColorTexture(6));
-    mpVars->setTexture("gMatlExtraTex", pGBufferFbo->getColorTexture(7));
+    mpVars->setTexture("gPosTex", pGBufferFbo->getColorTexture(GBufferRT::POSITION));
+    mpVars->setTexture("gNormTex", pGBufferFbo->getColorTexture(GBufferRT::NORMAL));
+    mpVars->setTexture("gBitangentTex", pGBufferFbo->getColorTexture(GBufferRT::BITANGENT));
+    mpVars->setTexture("gTexCoordTex", pGBufferFbo->getColorTexture(GBufferRT::TEXCOORD));
+    mpVars->setTexture("gDiffuseOpacityTex", pGBufferFbo->getColorTexture(GBufferRT::DIFFUSE_OPACITY));
+    mpVars->setTexture("gSpecRoughTex", pGBufferFbo->getColorTexture(GBufferRT::SPECULAR_ROUGHNESS));
+    mpVars->setTexture("gEmissiveTex", pGBufferFbo->getColorTexture(GBufferRT::EMISSIVE));
+    mpVars->setTexture("gMatlExtraTex", pGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR));
     mpVars->setTexture("visibilityBuffer", visibilityTexture);
 
     // Set camera

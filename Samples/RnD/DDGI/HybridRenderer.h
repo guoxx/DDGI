@@ -29,10 +29,12 @@
 #include "Falcor.h"
 #include "Experimental/RenderPasses/BlitPass.h"
 #include "Experimental/RenderPasses/DepthPass.h"
+#include "Experimental/RenderPasses/GBuffer.h"
 #include "Experimental/RenderPasses/GBufferRaster.h"
 #include "Experimental/RenderPasses/GBufferLightingPass.h"
 #include "Experimental/RenderPasses/ForwardLightingPass.h"
-#include "LightFieldProbe.h"
+#include "LightFieldProbeVolume.h"
+#include "LightFieldProbeRayTracing.h"
 
 using namespace Falcor;
 
@@ -69,7 +71,8 @@ private:
     SSAO::SharedPtr mpSSAO;
     FXAA::SharedPtr mpFXAA;
 
-    LightFieldProbe::SharedPtr mpLightFieldProbe;
+    LightFieldProbeVolume::SharedPtr mpLightProbeVolume;
+    LightFieldProbeRayTracing::SharedPtr mpLightProbeRayTracer;
 
     //  The Temporal Anti-Aliasing Pass.
     class

@@ -86,7 +86,7 @@ VsOut VSMain(uint id: SV_VertexID)
 
 float4 PSMain(VsOut pIn) : SV_TARGET0
 {
-    float3 dir = octDecode(UvToNdc(pIn.texC));
+    float3 dir = octDecode(UvToOct(pIn.texC));
     //float3 dir = sphericalMapping(pIn.texC);
     float4 ret = sampleCubemap(dir);
     return ret;

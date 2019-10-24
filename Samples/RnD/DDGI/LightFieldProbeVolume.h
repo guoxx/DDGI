@@ -28,8 +28,9 @@
 #pragma once
 #include "Falcor.h"
 #include "Experimental/RenderPasses/GBufferRaster.h"
-#include "GBufferShading.h"
+#include "LightFieldProbeShading.h"
 #include "OctahedralMapping.h"
+#include "DownscalePass.h"
 
 namespace Falcor
 {
@@ -37,37 +38,51 @@ namespace Falcor
     class ConstantBuffer;
     class Gui;
 
-    class LightFieldProbe : public IMovableObject, public inherit_shared_from_this<IMovableObject, LightFieldProbe>
+    class LightFieldProbeVolume : public std::enable_shared_from_this<LightFieldProbeVolume>
     {
     public:
-        using SharedPtr = std::shared_ptr<LightFieldProbe>;
-        using SharedConstPtr = std::shared_ptr<const LightFieldProbe>;
-        SharedPtr shared_from_this() { return inherit_shared_from_this<IMovableObject, LightFieldProbe>::shared_from_this(); }
+        using SharedPtr = std::shared_ptr<LightFieldProbeVolume>;
+        using SharedConstPtr = std::shared_ptr<const LightFieldProbeVolume>;
 
         static SharedPtr create();
 
-        ~LightFieldProbe();
+        ~LightFieldProbeVolume();
 
         void setScene(const Scene::SharedPtr& pScene);
 
-        void setPosition(const glm::vec3& p);
+        void renderUI(Gui* pGui, const char* group = nullptr);
+
+        void setProbesCount(const glm::vec3 probesCount) { mProbesCount = probesCount; }
+
+        int3 getProbesCount() const { return mProbesCount; }
+        float3 getProbeStep() const { return mProbeStep; }
+        float3 getProbeStartPosition() const { return mProbeStartPosition; }
 
         void update(RenderContext* pContext);
+
+        Texture::SharedPtr getRadianceTexture() const { return mpRadianceFbo->getColorTexture(0); }
+        Texture::SharedPtr getNormalTexture() const { return mpNormalFbo->getColorTexture(0); }
+        Texture::SharedPtr getDistanceTexture() const { return mpDistanceFbo->getColorTexture(0); }
+        Texture::SharedPtr getLowResDistanceTexture() const { return mpLowResDistanceFbo->getColorTexture(0); }
 
         void debugDraw(RenderContext* pContext, Camera::SharedConstPtr pCamera, Fbo::SharedPtr pTargetFbo);
 
     private:
-        LightFieldProbe();
+        LightFieldProbeVolume();
 
-        void move(const glm::vec3& position, const glm::vec3& target, const glm::vec3& up) override;
+        void onProbesCountChanged();
+        void onSceneBoundsChanged();
+
+        void setProbesNeedToUpdate();
+
+        void createFBOs();
+        void updateProbesAllocation();
 
         void loadDebugResources();
         void unloadDebugResources();
 
         struct
         {
-            bool enableDebugDisplay = true;
-
             Scene::SharedPtr pScene;
             SceneRenderer::SharedPtr pRenderer;
 
@@ -76,18 +91,46 @@ namespace Falcor
             GraphicsState::SharedPtr pPipelineState;
         } mDebugger;
 
-        int32_t mCubemapResolution = 512;
-        int32_t mOctahedralResolution = 512;
-        glm::vec3 mPosition;
-        Scene::SharedConstPtr mpScene;
+        bool mVisualizeProbes = false;
+
+        Scene::SharedPtr mpScene;
+        BoundingBox mSceneBounds;
+
+        int3 mProbesCount{2, 1, 1};
+        float3 mProbeStep;
+        float3 mProbeStartPosition;
+
+        enum 
+        {
+            CubemapResolution = 1024,
+            OctahedralResolution = 1024,
+            OctahedralResolutionLowRes = 1024/32,
+            NumProbesUpdatePerFrame = 1,
+        };
+
+        Fbo::SharedPtr mpTempGBufferFbo;
+        Fbo::SharedPtr mpTempLightFieldFbos[6];
 
         Fbo::SharedPtr mpRadianceFbo;
         Fbo::SharedPtr mpNormalFbo;
         Fbo::SharedPtr mpDistanceFbo;
+        Fbo::SharedPtr mpLowResDistanceFbo;
 
         CascadedShadowMaps::SharedPtr mpShadowPass;
         GBufferRaster::SharedPtr mpRaster;
-        GBufferShading::SharedPtr mpShading;
+        LightFieldProbeShading::SharedPtr mpShading;
         OctahedralMapping::SharedPtr mpOctMapping;
+        DownscalePass::SharedPtr mpDownscalePass;
+
+        struct LightFieldProbe
+        {
+            bool mUpdated = false;
+            bool mVisible = false;
+            bool mUpdateEveryFrame = false;
+            int mProbeIdx;
+            float3 mProbePosition;
+        };
+        std::vector<LightFieldProbe> mProbes;
+        float mProbeSize = 1.0;
     };
 }

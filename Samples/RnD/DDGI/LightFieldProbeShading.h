@@ -30,10 +30,10 @@
 
 using namespace Falcor;
 
-class GBufferShading : public RenderPass, inherit_shared_from_this<RenderPass, GBufferShading>
+class LightFieldProbeShading : public RenderPass, inherit_shared_from_this<RenderPass, LightFieldProbeShading>
 {
 public:
-    using SharedPtr = std::shared_ptr<GBufferShading>;
+    using SharedPtr = std::shared_ptr<LightFieldProbeShading>;
 
     static SharedPtr create(const Dictionary& dict = {});
 
@@ -47,9 +47,9 @@ public:
     Dictionary getScriptingDictionary() const override;
     void onResize(uint32_t width, uint32_t height) override;
     void setScene(const Scene::SharedPtr& pScene) override;
-    std::string getDesc(void) override { return "GBuffer lighting"; }
+    std::string getDesc(void) override { return "Light field probe shading"; }
 private:
-    GBufferShading();
+    LightFieldProbeShading();
     bool parseDictionary(const Dictionary& dict);
 
     void setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture);

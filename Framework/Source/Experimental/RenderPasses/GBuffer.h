@@ -36,6 +36,19 @@ struct GBufferChannelDesc
     const char*   texname;  // Name of corresponding ITexture2D in GBufferRT shader code
 };
 
+// Keep same order as channel description showed below
+enum GBufferRT
+{
+    POSITION            = 0,
+    NORMAL              = 1,
+    BITANGENT           = 2,
+    TEXCOORD            = 3,
+    DIFFUSE_OPACITY     = 4,
+    SPECULAR_ROUGHNESS  = 5,
+    EMISSIVE            = 6,
+    MOTION_VECTOR       = 7,
+};
+
 // Note that channel order should correspond to SV_TARGET index order used in
 // GBufferRaster's primary fragment shader.
 static const std::vector<GBufferChannelDesc> kGBufferChannelDesc({

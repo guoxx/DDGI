@@ -27,14 +27,14 @@
 ***************************************************************************/
 #include "Framework.h"
 #include "Experimental/RenderPasses/GBuffer.h"
-#include "GBufferShading.h"
+#include "LightFieldProbeShading.h"
 
 namespace
 {
-    const char kShaderFilename[] = "GBufferShading.slang";
+    const char kShaderFilename[] = "LightFieldProbeShading.slang";
 }
 
-RenderPassReflection GBufferShading::reflect() const
+RenderPassReflection LightFieldProbeShading::reflect() const
 {
     RenderPassReflection r;
     for (int i = 0; i < kGBufferChannelDesc.size(); ++i)
@@ -48,7 +48,7 @@ RenderPassReflection GBufferShading::reflect() const
     return r;
 }
 
-bool GBufferShading::parseDictionary(const Dictionary& dict)
+bool LightFieldProbeShading::parseDictionary(const Dictionary& dict)
 {
     for (const auto& v : dict)
     {
@@ -57,19 +57,19 @@ bool GBufferShading::parseDictionary(const Dictionary& dict)
     return true;
 }
 
-GBufferShading::SharedPtr GBufferShading::create(const Dictionary& dict)
+LightFieldProbeShading::SharedPtr LightFieldProbeShading::create(const Dictionary& dict)
 {
-    SharedPtr pPass = SharedPtr(new GBufferShading);
+    SharedPtr pPass = SharedPtr(new LightFieldProbeShading);
     return pPass->parseDictionary(dict) ? pPass : nullptr;
 }
 
-Dictionary GBufferShading::getScriptingDictionary() const
+Dictionary LightFieldProbeShading::getScriptingDictionary() const
 {
     Dictionary dict;
     return dict;
 }
 
-GBufferShading::GBufferShading() : RenderPass("GBufferShading")
+LightFieldProbeShading::LightFieldProbeShading() : RenderPass("GBufferShading")
 {
     GraphicsProgram::Desc d;
     d.addShaderLibrary(kShaderFilename).vsEntry("VSMain").psEntry("PSMain");
@@ -102,20 +102,20 @@ GBufferShading::GBufferShading() : RenderPass("GBufferShading")
     mpState->setProgram(mpProgram);
 }
 
-void GBufferShading::onResize(uint32_t width, uint32_t height)
+void LightFieldProbeShading::onResize(uint32_t width, uint32_t height)
 {
 }
 
-void GBufferShading::setScene(const Scene::SharedPtr& pScene)
+void LightFieldProbeShading::setScene(const Scene::SharedPtr& pScene)
 {
     mpScene = pScene;
 }
 
-void GBufferShading::renderUI(Gui* pGui, const char* uiGroup)
+void LightFieldProbeShading::renderUI(Gui* pGui, const char* uiGroup)
 {
 }
 
-void GBufferShading::execute(RenderContext* pContext, const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture, const Fbo::SharedPtr& pTargetFbo)
+void LightFieldProbeShading::execute(RenderContext* pContext, const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture, const Fbo::SharedPtr& pTargetFbo)
 {
     setVarsData(pGBufferFbo, visibilityTexture);
 
@@ -132,7 +132,7 @@ void GBufferShading::execute(RenderContext* pContext, const Fbo::SharedPtr& pGBu
     mpState->popFbo();    
 }
 
-void GBufferShading::execute(RenderContext* pContext, const RenderData* pRenderData)
+void LightFieldProbeShading::execute(RenderContext* pContext, const RenderData* pRenderData)
 {
     Fbo::SharedPtr pGBufferFbo = Fbo::create();
     pGBufferFbo->attachDepthStencilTarget(pRenderData->getTexture("depthStencil"));
@@ -146,7 +146,7 @@ void GBufferShading::execute(RenderContext* pContext, const RenderData* pRenderD
     execute(pContext, pGBufferFbo, pRenderData->getTexture("visibilityBuffer"), pTargetFbo);
 }
 
-void GBufferShading::setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture)
+void LightFieldProbeShading::setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture)
 {
     mpVars->setTexture("gPosTex", pGBufferFbo->getColorTexture(0));
     mpVars->setTexture("gNormTex", pGBufferFbo->getColorTexture(1));
