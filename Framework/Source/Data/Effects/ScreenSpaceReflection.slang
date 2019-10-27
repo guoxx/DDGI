@@ -28,9 +28,7 @@ cbuffer PerFrameCB
 Texture2D gColorTex;
 Texture2D gHZBTex;
 Texture2D gNormalTex;
-Texture2D gDiffuseOpacityTex;
 Texture2D gSpecRoughTex;
-Texture2D gHistoryTex;
 
 SamplerState gPointSampler;
 
@@ -682,7 +680,7 @@ float4 psMain(VsOut pIn) : SV_TARGET0
     if (isEqualToFarPlane(linearZ))
         return float4(0, 0, 0, 1);
 
-    float3 normal = gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz * 2 - 1;
+    float3 normal = decodeUnitVector(gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xy);
     normal = mul(float4(normal, 0), gViewMat).xyz;
 
     const float3 posCS = pIn.rayDir / pIn.rayDir.z * linearZ;
@@ -740,8 +738,6 @@ float4 psMain(VsOut pIn) : SV_TARGET0
 #endif
     }
 
-    //float3 historyResult = gHistoryTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
     result += gColorTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
-    //result = result / gFrameCount + historyResult * (1 - 1.0/gFrameCount);
     return float4(result, 1);
 }

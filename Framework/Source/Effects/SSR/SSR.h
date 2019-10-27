@@ -39,15 +39,11 @@ namespace Falcor
         /** Run the effect
         */
         void execute(RenderContext* pRenderContext,
-            const Camera* pCamera,
-            const Texture::SharedPtr& pColorIn,
-            const Texture::SharedPtr& pDepthTexture,
-            const Texture::SharedPtr& pHZBTexture,
-            const Texture::SharedPtr& pNormalTexture,
-            const Texture::SharedPtr& pDiffuseOpacityTexture,
-            const Texture::SharedPtr& pSpecRoughTexture,
-            const Texture::SharedPtr& pMotionVecTexture,
-            const Fbo::SharedPtr& pFbo);
+                     const Camera* pCamera,
+                     const Texture::SharedPtr& pColorIn,
+                     const Texture::SharedPtr& pHZBTexture,
+                     const Fbo::SharedPtr& pGBufferFbo,
+                     const Fbo::SharedPtr& pFbo);
 
         virtual void onResize(uint32_t width, uint32_t height) override;
 
@@ -65,12 +61,9 @@ namespace Falcor
 
         //  Set the Variable Data needed for Rendering.
         void setVarsData(const Camera* pCamera,
-            const Texture::SharedPtr& pColorIn,
-            const Texture::SharedPtr& pDepthTexture,
-            const Texture::SharedPtr& pHZBTexture,
-            const Texture::SharedPtr& pNormalTexture,
-            const Texture::SharedPtr& pDiffuseOpacityTexture,
-            const Texture::SharedPtr& pSpecRoughTexture);
+                         const Texture::SharedPtr& pColorIn,
+                         const Texture::SharedPtr& pHZBTexture,
+                         const Fbo::SharedPtr& pGBufferFbo);
 
         struct
         {
@@ -83,10 +76,8 @@ namespace Falcor
             ProgramReflection::BindLocation pointSampler;
             ProgramReflection::BindLocation HZBTex;
             ProgramReflection::BindLocation normalTex;
-            ProgramReflection::BindLocation diffuseOpacityTex;
             ProgramReflection::BindLocation specRoughTex;
             ProgramReflection::BindLocation colorTex;
-            ProgramReflection::BindLocation historyTex;
         } mBindLocations;
 
         struct
@@ -116,11 +107,6 @@ namespace Falcor
         GraphicsState::SharedPtr mpPipelineState;
 
         Sampler::SharedPtr mpPointSampler;
-
-        Fbo::SharedPtr mpTempFbo;
-        Texture::SharedPtr mpHistoryTex;
-
-        TemporalAA::SharedPtr mpTAA;
 
 #ifdef DEBUG_SSR
         static const Gui::DropdownList kDebugModeDropdown;

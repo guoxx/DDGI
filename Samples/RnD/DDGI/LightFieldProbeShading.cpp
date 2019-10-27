@@ -100,6 +100,17 @@ LightFieldProbeShading::LightFieldProbeShading() : RenderPass("GBufferShading")
     mpState->setDepthStencilState(pDepthStencilState);
     mpState->setVao(pVao);
     mpState->setProgram(mpProgram);
+
+    Sampler::Desc samplerDesc;
+    samplerDesc.setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point);
+    samplerDesc.setAddressingMode(Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp);
+    Sampler::SharedPtr pPointSampler = Sampler::create(samplerDesc);
+    mpVars->setSampler("gPointSampler", pPointSampler);
+
+    const ParameterBlockReflection* pParamBlockReflector = pReflector->getDefaultParameterBlock().get();
+    mBindLocations.gbufferRT = pParamBlockReflector->getResourceBinding("gGbufferRT");
+    mBindLocations.depthTex = pParamBlockReflector->getResourceBinding("gDepthTex");
+    mBindLocations.visibilityBuffer = pParamBlockReflector->getResourceBinding("visibilityBuffer");
 }
 
 void LightFieldProbeShading::onResize(uint32_t width, uint32_t height)
@@ -148,16 +159,16 @@ void LightFieldProbeShading::execute(RenderContext* pContext, const RenderData* 
 
 void LightFieldProbeShading::setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture)
 {
-    mpVars->setTexture("gPosTex", pGBufferFbo->getColorTexture(0));
-    mpVars->setTexture("gNormTex", pGBufferFbo->getColorTexture(1));
-    mpVars->setTexture("gBitangentTex", pGBufferFbo->getColorTexture(2));
-    mpVars->setTexture("gTexCoordTex", pGBufferFbo->getColorTexture(3));
-    mpVars->setTexture("gDiffuseOpacityTex", pGBufferFbo->getColorTexture(4));
-    mpVars->setTexture("gSpecRoughTex", pGBufferFbo->getColorTexture(5));
-    mpVars->setTexture("gEmissiveTex", pGBufferFbo->getColorTexture(6));
-    mpVars->setTexture("gMatlExtraTex", pGBufferFbo->getColorTexture(7));
-    mpVars->setTexture("visibilityBuffer", visibilityTexture);
+    // SRV binding
+    ParameterBlock* pDefaultBlock = mpVars->getDefaultBlock().get();
+    for (int i = 0; i < kGBufferChannelDesc.size(); ++i)
+    {
+        pDefaultBlock->setSrv(mBindLocations.gbufferRT, i, pGBufferFbo->getColorTexture(i)->getSRV());
+    }
+    pDefaultBlock->setSrv(mBindLocations.depthTex, 0, pGBufferFbo->getDepthStencilTexture()->getSRV());
+    pDefaultBlock->setSrv(mBindLocations.visibilityBuffer, 0, visibilityTexture->getSRV());
 
+    // InternalPerFrameCB update
     // Set camera
     mpCamera->setIntoConstantBuffer(mpInternalPerFrameCB.get(), mOffsetInCB.cameraDataOffset);
 

@@ -28,7 +28,6 @@
 __import DefaultVS;
 __import Helpers;
 __import Shading;
-__import Octahedral;
 
 cbuffer PerInstanceData
 {

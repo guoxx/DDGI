@@ -73,7 +73,7 @@ GBufferLightingPass::GBufferLightingPass() : RenderPass("GBufferLightingPass")
 {
     GraphicsProgram::Desc d;
     d.addShaderLibrary(kShaderFilename).vsEntry("VSMain").psEntry("PSMain");
-    mpProgram = GraphicsProgram::create(d, Program::DefineList{ {"_FIRST_ITER", ""} });
+    mpProgram = GraphicsProgram::create(d);
 
     ProgramReflection::SharedConstPtr pReflector = mpProgram->getReflector();
     mpVars = GraphicsVars::create(pReflector);
@@ -100,6 +100,17 @@ GBufferLightingPass::GBufferLightingPass() : RenderPass("GBufferLightingPass")
     mpState->setDepthStencilState(pDepthStencilState);
     mpState->setVao(pVao);
     mpState->setProgram(mpProgram);
+
+    Sampler::Desc samplerDesc;
+    samplerDesc.setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point);
+    samplerDesc.setAddressingMode(Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp);
+    Sampler::SharedPtr pPointSampler = Sampler::create(samplerDesc);
+    mpVars->setSampler("gPointSampler", pPointSampler);
+
+    const ParameterBlockReflection* pParamBlockReflector = pReflector->getDefaultParameterBlock().get();
+    mBindLocations.gbufferRT = pParamBlockReflector->getResourceBinding("gGbufferRT");
+    mBindLocations.depthTex = pParamBlockReflector->getResourceBinding("gDepthTex");
+    mBindLocations.visibilityBuffer = pParamBlockReflector->getResourceBinding("visibilityBuffer");
 }
 
 void GBufferLightingPass::onResize(uint32_t width, uint32_t height)
@@ -148,18 +159,16 @@ void GBufferLightingPass::execute(RenderContext* pContext, const RenderData* pRe
 
 void GBufferLightingPass::setVarsData(const Fbo::SharedPtr& pGBufferFbo, Texture::SharedPtr visibilityTexture)
 {
-    mpScene->getActiveCamera()->setIntoConstantBuffer(mpInternalPerFrameCB.get(), "gCamera");
+    // SRV binding
+    ParameterBlock* pDefaultBlock = mpVars->getDefaultBlock().get();
+    for (int i = 0; i < kGBufferChannelDesc.size(); ++i)
+    {
+        pDefaultBlock->setSrv(mBindLocations.gbufferRT, i, pGBufferFbo->getColorTexture(i)->getSRV());
+    }
+    pDefaultBlock->setSrv(mBindLocations.depthTex, 0, pGBufferFbo->getDepthStencilTexture()->getSRV());
+    pDefaultBlock->setSrv(mBindLocations.visibilityBuffer, 0, visibilityTexture->getSRV());
 
-    mpVars->setTexture("gPosTex", pGBufferFbo->getColorTexture(GBufferRT::POSITION));
-    mpVars->setTexture("gNormTex", pGBufferFbo->getColorTexture(GBufferRT::NORMAL));
-    mpVars->setTexture("gBitangentTex", pGBufferFbo->getColorTexture(GBufferRT::BITANGENT));
-    mpVars->setTexture("gTexCoordTex", pGBufferFbo->getColorTexture(GBufferRT::TEXCOORD));
-    mpVars->setTexture("gDiffuseOpacityTex", pGBufferFbo->getColorTexture(GBufferRT::DIFFUSE_OPACITY));
-    mpVars->setTexture("gSpecRoughTex", pGBufferFbo->getColorTexture(GBufferRT::SPECULAR_ROUGHNESS));
-    mpVars->setTexture("gEmissiveTex", pGBufferFbo->getColorTexture(GBufferRT::EMISSIVE));
-    mpVars->setTexture("gMatlExtraTex", pGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR));
-    mpVars->setTexture("visibilityBuffer", visibilityTexture);
-
+    // InternalPerFrameCB update
     // Set camera
     mpScene->getActiveCamera()->setIntoConstantBuffer(mpInternalPerFrameCB.get(), mOffsetInCB.cameraDataOffset);
 

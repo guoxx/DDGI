@@ -26,9 +26,6 @@
     <None Include="Data\OctahedralMapping.slang">
       <Filter>Data</Filter>
     </None>
-    <None Include="Data\Octahedral.slang">
-      <Filter>Data</Filter>
-    </None>
     <None Include="Data\LightFieldProbeViewer.ps.slang">
       <Filter>Data</Filter>
     </None>

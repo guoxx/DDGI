@@ -29,6 +29,7 @@ import ShaderCommon;
 import Shading;
 import Helpers;
 import GGXGICommon;
+import GBuffer;
 
 [shader("raygeneration")]
 void GGXGlobalIllumRayGen()
@@ -40,12 +41,12 @@ void GGXGlobalIllumRayGen()
     uint randSeed = rand_init(launchIndex.x + launchIndex.y * launchDim.x, gFrameCount, 16);
 
     // Load g-buffer data
-    float4 posW = gPos[launchIndex];
-    float3 normW = gNorm[launchIndex].xyz * 2 - 1;
-    float4 diffuse = gDiffuseMatl[launchIndex];
-    float4 specRough = gSpecMatl[launchIndex];
-    float4 emissive = gEmissive[launchIndex];
-    float3 geomN = gExtraMatl[launchIndex].xyz * 2 - 1;
+    GBufferData data = GBufferDecode(gGbufferRT, gDepthTex, gSampler, float2(launchIndex)/launchDim, gCamera.invViewProj);
+    float4 posW = float4(data.posW, 1);
+    float3 normW = data.normW;
+    float3 diffuse = data.diffuse;
+    float4 specRough = float4(data.specular, data.linearRoughness);
+    float3 emissive = data.emissive;
 
     // Does this g-buffer pixel contain a valid piece of geometry?  (0 in pos.w for invalid)
     bool isGeometryValid = (posW.w != 0.0f);
@@ -56,9 +57,6 @@ void GGXGlobalIllumRayGen()
 
     // Make sure our normal is pointed the right direction
     if (dot(normW, V) <= 0.0f) normW = -normW;
-
-    // Make sure out geometric normal is pointed in the right direction
-    if (dot(geomN, V) <= 0.0f) geomN = -geomN;
 
     float3 shadeColor = float3(0, 0, 0);
 
@@ -82,7 +80,7 @@ void GGXGlobalIllumRayGen()
         if (gDoDirectGI) shadeColor += ggxDirect(randSeed, sd);
 
         // Indirect lighting for global illumination
-        if (gDoIndirectGI && (gMaxDepth > 0)) shadeColor += ggxIndirect(randSeed, sd, geomN);
+        if (gDoIndirectGI && (gMaxDepth > 0)) shadeColor += ggxIndirect(randSeed, sd, normW);
 
         // Zero out any bad samples
         bool colorsNan = any(isnan(shadeColor));

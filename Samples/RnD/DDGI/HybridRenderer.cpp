@@ -301,13 +301,8 @@ void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedP
         PROFILE("SSR");
         GPU_EVENT(pContext, "SSR");
         Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
-        Texture::SharedPtr pNormal = mpResolveFbo->getColorTexture(1);
-        Texture::SharedPtr pDiffuseOpacity = mpGBufferFbo->getColorTexture(GBufferRT::DIFFUSE_OPACITY);
-        Texture::SharedPtr pSpecRough = mpGBufferFbo->getColorTexture(GBufferRT::SPECULAR_ROUGHNESS);
-        Texture::SharedPtr pMotionVec = mpGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR);
-        Texture::SharedPtr pDepth = mpResolveFbo->getDepthStencilTexture();
         const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mpSSRPass->execute(pContext, pCamera, pColorIn, pDepth, mpHZBTexture, pNormal, pDiffuseOpacity, pSpecRough, pMotionVec, mpSSRFbo);
+        mpSSRPass->execute(pContext, pCamera, pColorIn, mpHZBTexture, mpGBufferFbo, mpSSRFbo);
 
         pContext->blit(mpSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
     }
@@ -403,7 +398,10 @@ void HybridRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarget
 
     Fbo::SharedPtr pPostProcessDst = mEnableSSAO ? mpPostProcessFbo : pTargetFbo;
     buildHZB(pContext);
-    screenSpaceReflection(pContext, pPostProcessDst);
+    if (mRenderPath == RenderPath::Deferred)
+    {
+        screenSpaceReflection(pContext, pPostProcessDst);
+    }
     toneMapping(pContext, pPostProcessDst);
     runTAA(pContext, pPostProcessDst); // This will only run if we are in TAA mode
     ambientOcclusion(pContext, pTargetFbo);
@@ -444,7 +442,7 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         {
             renderGBuffer(pRenderContext, mpGBufferFbo);
             deferredLighting(pRenderContext, mpGBufferFbo, mpShadowPass->getVisibilityBuffer(), mpMainFbo);
-            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(GBufferRT::NORMAL), mpMainFbo->getColorTexture(1));
+            mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(GBufferRT::NORMAL_BITANGENT), mpMainFbo->getColorTexture(1));
             mpBlitPass->execute(pRenderContext, mpGBufferFbo->getColorTexture(GBufferRT::MOTION_VECTOR), mpMainFbo->getColorTexture(2));
         }
         else
@@ -457,7 +455,7 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             PROFILE("lightFieldProbeRayTracing");
             GPU_EVENT(pRenderContext, "lightFieldProbeRayTracing");
             Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
-            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
+            //mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
         }
 
         {

@@ -2895,5 +2895,8 @@
     <None Include="Data\ApplyAO.ps.slang">
       <Filter>Data</Filter>
     </None>
+    <None Include="ShadingUtils\GBuffer.slang">
+      <Filter>ShadingUtils</Filter>
+    </None>
   </ItemGroup>
 </Project>

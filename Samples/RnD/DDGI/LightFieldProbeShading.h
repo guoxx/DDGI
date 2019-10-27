@@ -64,6 +64,13 @@ private:
         int32_t lightCountOffset;
     } mOffsetInCB;
 
+    struct
+    {
+        ProgramReflection::BindLocation gbufferRT;
+        ProgramReflection::BindLocation depthTex;
+        ProgramReflection::BindLocation visibilityBuffer;
+    } mBindLocations;
+
     GraphicsState::SharedPtr mpState;
     GraphicsProgram::SharedPtr mpProgram;
     GraphicsVars::SharedPtr mpVars;

@@ -411,6 +411,16 @@ float clipLineByRect(float2 P0, float2 P1, float4 rect)
     return 1 - alpha;
 }
 
+float signNotZero(float value)
+{
+    return value >= 0.0 ? 1.0 : -1.0;
+}
+
+float2 signNotZero(float2 value)
+{
+    return float2(signNotZero(value.x), signNotZero(value.y));
+}
+
 float2 UvToNdc(float2 uv)
 {
     return uv * float2(2, -2) + float2(-1, 1);
@@ -419,6 +429,46 @@ float2 UvToNdc(float2 uv)
 float2 NdcToUv(float2 ndc)
 {
     return ndc * float2(0.5, -0.5) + float2(0.5, 0.5);
+}
+
+float2 UvToOct(in float2 uv)
+{
+    return uv * 2 - 1;
+}
+
+float2 OctToUv(in float2 o)
+{
+    return o * 0.5 + 0.5;
+}
+
+/** Assumes that v is a unit vector. The result is an octahedral vector on the [-1, +1] square. */
+float2 octEncode(in float3 v) {
+    float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
+    float2 result = v.xy * (1.0 / l1norm);
+    if (v.z < 0.0) {
+        result = (1.0 - abs(result.yx)) * signNotZero(result.xy);
+    }
+    return result;
+}
+
+/** Returns a unit vector. Argument o is an octahedral vector packed via octEncode,
+    on the [-1, +1] square*/
+float3 octDecode(float2 o) {
+    float3 v = float3(o.x, o.y, 1.0 - abs(o.x) - abs(o.y));
+    if (v.z < 0.0) {
+        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    }
+    return normalize(v);
+}
+
+float2 encodeUnitVector(float3 v)
+{
+    return octEncode(v) * 0.5 + 0.5;
+}
+
+float3 decodeUnitVector(float2 d)
+{
+    return octDecode(d * 2 - 1);
 }
 
 #endif //_FALCOR_HELPERS_SLANG_

@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 #include "GGXGlobalIllumination.h"
+#include "Experimental/RenderPasses/GBuffer.h"
 
 // Some global vars, used to simplify changing shader locations
 namespace {
@@ -74,12 +75,12 @@ Dictionary GGXGlobalIllumination::getScriptingDictionary() const
 RenderPassReflection GGXGlobalIllumination::reflect(void) const
 {
     RenderPassReflection r;
-    r.addInput("posW", "");
-    r.addInput("normW", "");
-    r.addInput("diffuseOpacity", "");
-    r.addInput("specRough", "");
-    r.addInput("emissive", "");
-    r.addInput("matlExtra", "");
+    r.addInput("rt0", "");
+    r.addInput("rt1", "");
+    r.addInput("rt2", "");
+    r.addInput("rt3", "");
+    r.addInput("rt4", "");
+    r.addInput("depthStencil", "");
 
     r.addOutput("output", "").format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess | Resource::BindFlags::RenderTarget);
     return r;
@@ -117,6 +118,11 @@ void GGXGlobalIllumination::initialize(RenderContext* pContext, const RenderData
         mpVars = RtProgramVars::create(mpProgram, mpScene);
     }
 
+    Sampler::Desc samplerDesc;
+    samplerDesc.setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point);
+    samplerDesc.setAddressingMode(Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp);
+    mpSampler = Sampler::create(samplerDesc);
+
     mIsInitialized = true;
 }
 
@@ -138,20 +144,27 @@ void GGXGlobalIllumination::execute(RenderContext* pContext, const RenderData* p
     auto globalVars = mpVars->getGlobalVars();
 
     ConstantBuffer::SharedPtr pCB = globalVars->getConstantBuffer("GlobalCB");
-    pCB["gMinT"] = 1.0e-3f;
+    pCB["gMinT"] = 1.0e-2f;
     pCB["gFrameCount"] = mFrameCount++;
     pCB["gDoIndirectGI"] = mDoIndirectGI;
     pCB["gDoDirectGI"] = mDoDirectGI;
     pCB["gMaxDepth"] = uint32_t(mUserSpecifiedRayDepth);
     pCB["gEmitMult"] = float(mUseEmissiveGeom ? mEmissiveGeomMult : 0.0f);
 
-    globalVars->setTexture("gPos", pData->getTexture("posW"));
-    globalVars->setTexture("gNorm", pData->getTexture("normW"));
-    globalVars->setTexture("gDiffuseMatl", pData->getTexture("diffuseOpacity"));
-    globalVars->setTexture("gSpecMatl", pData->getTexture("specRough"));
-    globalVars->setTexture("gExtraMatl", pData->getTexture("matlExtra"));
-    globalVars->setTexture("gEmissive", pData->getTexture("emissive"));
     globalVars->setTexture("gOutput", pDstTex);
+
+    const ParameterBlockReflection* pParamBlockReflector = globalVars->getReflection()->getDefaultParameterBlock().get();
+    ProgramReflection::BindLocation gbufferBindingLoc = pParamBlockReflector->getResourceBinding("gGbufferRT");
+    ProgramReflection::BindLocation depthTexBindingLoc = pParamBlockReflector->getResourceBinding("gDepthTex");
+    ParameterBlock* pDefaultBlock = globalVars->getDefaultBlock().get();
+    pDefaultBlock->setSrv(gbufferBindingLoc, 0, pData->getTexture("rt0")->getSRV());
+    pDefaultBlock->setSrv(gbufferBindingLoc, 1, pData->getTexture("rt1")->getSRV());
+    pDefaultBlock->setSrv(gbufferBindingLoc, 2, pData->getTexture("rt2")->getSRV());
+    pDefaultBlock->setSrv(gbufferBindingLoc, 3, pData->getTexture("rt3")->getSRV());
+    pDefaultBlock->setSrv(gbufferBindingLoc, 4, pData->getTexture("rt4")->getSRV());
+    pDefaultBlock->setSrv(depthTexBindingLoc, 0, pData->getTexture("depthStencil")->getSRV());
+
+    globalVars->setSampler("gSampler", mpSampler);
 
     const Texture::SharedPtr& pEnvMap = mpScene->getEnvironmentMap();
     globalVars->setTexture("gEnvMap", (mEnvMapMode == EnvMapMode::Black || pEnvMap == nullptr) ? mpBlackHDR : pEnvMap);

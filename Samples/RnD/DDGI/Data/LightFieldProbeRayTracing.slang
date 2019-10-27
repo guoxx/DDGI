@@ -1,6 +1,5 @@
 #include "HostDeviceData.h"
 
-__import Octahedral;
 __import Helpers;
 __import LightFieldProbe;
 
@@ -78,7 +77,7 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     float3 P = reconstructPositionFromDepth(gDepthTex, gPointSampler, pIn.texC, gInvViewProjMat).xyz;
     float3 V = normalize(gCameraPos.xyz - P);
 
-    float3 N = gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz * 2 - 1;
+    float3 N = decodeUnitVector(gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xy);
 
     float3 Wi = reflect(-V, N);
     Ray reflectRay = {P+Wi*0.02, Wi};

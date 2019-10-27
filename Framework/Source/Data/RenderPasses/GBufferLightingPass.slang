@@ -29,18 +29,13 @@ __import ShaderCommon;
 __import Shading;
 __import Helpers;
 __import BRDF;
+__import GBuffer;
 
 
-Texture2D gPosTex;
-Texture2D gNormTex;
-Texture2D gBitangentTex;
-Texture2D gTexCoordTex;
-Texture2D gDiffuseOpacityTex;
-Texture2D gSpecRoughTex;
-Texture2D gEmissiveTex;
-Texture2D gMatlExtraTex;
-
+Texture2D gGbufferRT[5];
+Texture2D gDepthTex;
 Texture2D visibilityBuffer;
+SamplerState gPointSampler;
 
 struct VsOut
 {
@@ -58,15 +53,16 @@ VsOut VSMain(uint id: SV_VertexID)
 
 float4 PSMain(VsOut pIn) : SV_TARGET0
 {
+    GBufferData data = GBufferDecode(gGbufferRT, gDepthTex, gPointSampler, pIn.texC, gCamera.invViewProj);
+
     float4 pixelCrd = pIn.pos;
 
     // Load g-buffer data
-    float4 posW = gPosTex[pixelCrd.xy];
-    float3 normW = gNormTex[pixelCrd.xy].xyz * 2 - 1;
-    float4 diffuse = gDiffuseOpacityTex[pixelCrd.xy];
-    float4 specRough = gSpecRoughTex[pixelCrd.xy];
-    float4 emissive = gEmissiveTex[pixelCrd.xy];
-    float3 geomN = gMatlExtraTex[pixelCrd.xy].xyz * 2 - 1;
+    float4 posW = float4(data.posW, 1);
+    float3 normW = data.normW;
+    float3 diffuse = data.diffuse;
+    float4 specRough = float4(data.specular, data.linearRoughness);
+    float3 emissive = data.emissive;
 
     // Does this g-buffer pixel contain a valid piece of geometry?  (0 in pos.w for invalid)
     bool isGeometryValid = (posW.w != 0.0f);
@@ -79,9 +75,6 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
 
     // Make sure our normal is pointed the right direction
     if (dot(normW, V) <= 0.0f) normW = -normW;
-
-    // Make sure out geometric normal is pointed in the right direction
-    if (dot(geomN, V) <= 0.0f) geomN = -geomN;
 
     // Fill out ShadingData struct with GBuffer data
     ShadingData sd = initShadingData();

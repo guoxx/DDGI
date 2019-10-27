@@ -27,22 +27,11 @@
 ***************************************************************************/
 import Shading;
 import DefaultVS;
+import GBuffer;
 
 cbuffer PerFrameCB
 {
     float2 gRenderTargetDim;
-};
-
-struct GBufferOut
-{
-    float4 posW             : SV_TARGET0;
-    float4 normW            : SV_TARGET1;
-    float4 bitangentW       : SV_TARGET2;
-    float4 texC             : SV_TARGET3;
-    float4 diffuseOpacity   : SV_TARGET4;
-    float4 specRough        : SV_TARGET5;
-    float4 emissive         : SV_TARGET6;
-    float4 matlExtra        : SV_TARGET7;
 };
 
 /** Entry point for G-buffer rasterization pixel shader.
@@ -51,18 +40,16 @@ GBufferOut ps(VertexOut vsOut, float4 pixelCrd : SV_POSITION)
 {
     ShadingData sd = prepareShadingData(vsOut, gMaterial, gCamera.posW);
 
-    GBufferOut gOut;
-    gOut.posW           = float4(sd.posW, 1.f);
-    gOut.normW          = float4(sd.N * 0.5 + 0.5, 0.f);
-    gOut.bitangentW     = float4(sd.B * 0.5 + 0.5, 0.f);
-    gOut.texC           = float4(sd.uv, 0.f, 0.f);
-
-    gOut.diffuseOpacity = float4(sd.diffuse, sd.opacity);
-    gOut.specRough      = float4(sd.specular, sd.linearRoughness);
-    gOut.emissive       = float4(sd.emissive, 0.f);
-
-    gOut.matlExtra.xy = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim);
-    gOut.matlExtra.zw = float2(0, 0);
-
-    return gOut;
+    GBufferData data;
+    data.posW = sd.posW;
+    data.depth = pixelCrd.z;
+    data.normW = sd.N;
+    data.bitangentW = sd.B;
+    data.diffuse = sd.diffuse;
+    data.opacity = sd.opacity;
+    data.specular = sd.specular;
+    data.linearRoughness = sd.linearRoughness;
+    data.emissive = sd.emissive;
+    data.motionVec = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim);
+    return GBufferEncode(data);
 }

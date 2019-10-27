@@ -55,6 +55,7 @@ private:
     RtProgram::SharedPtr        mpProgram;
     RtState::SharedPtr          mpState;
     RtProgramVars::SharedPtr    mpVars;
+    Sampler::SharedPtr          mpSampler;
 
     RtScene::SharedPtr          mpScene;
     RtSceneRenderer::SharedPtr  mpSceneRenderer;

@@ -51,7 +51,7 @@ void LightFieldProbeRayTracing::setVarsData(Camera::SharedPtr& pCamera, LightFie
     mpVars->setTexture("gOctNormalTex", pProbe->getNormalTexture());
     mpVars->setTexture("gOctDistanceTex", pProbe->getDistanceTexture());
     mpVars->setTexture("gOctLowResDistanceTex", pProbe->getLowResDistanceTexture());
-    mpVars->setTexture("gNormalTex", pSceneGBufferFbo->getColorTexture(GBufferRT::NORMAL));
+    mpVars->setTexture("gNormalTex", pSceneGBufferFbo->getColorTexture(GBufferRT::NORMAL_BITANGENT));
     mpVars->setTexture("gDepthTex", pSceneGBufferFbo->getDepthStencilTexture());
 
     ParameterBlock* pDefaultBlock = mpVars->getDefaultBlock().get();

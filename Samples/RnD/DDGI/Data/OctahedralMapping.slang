@@ -1,6 +1,5 @@
 #include "HostDeviceData.h"
 
-__import Octahedral;
 __import Helpers;
 
 Texture2D gFacePosX;

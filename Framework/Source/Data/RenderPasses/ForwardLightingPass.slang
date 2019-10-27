@@ -87,7 +87,8 @@ PsOut ps(VertexOut vOut, float4 pixelCrd : SV_POSITION)
     finalColor.rgb += sd.diffuse * sd.lightMap.rgb;
 
     psOut.color = finalColor;
-    psOut.normal = float4(sd.N * 0.5f + 0.5f, 1.0f);
+    psOut.normal.xy = encodeUnitVector(sd.N.xyz);
+    psOut.normal.zw = 0;
 
 #ifdef _OUTPUT_MOTION_VECTORS
     psOut.motion = calcMotionVector(pixelCrd.xy, vOut.prevPosH, gRenderTargetDim);

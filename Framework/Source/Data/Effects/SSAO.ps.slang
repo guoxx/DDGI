@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 __import ShaderCommon;
+__import Helpers;
 #include "SSAOData.h"
 
 cbuffer SSAOCB : register(b0)
@@ -67,7 +68,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
 
     // Calculate world position of pixel
     float3 posW = getPosition(texC).xyz;
-    float3 normal = normalize(gNormalTex.Sample(gTextureSampler, texC).xyz * 2.0f - 1.0f);
+    float3 normal = decodeUnitVector(gNormalTex.Sample(gTextureSampler, texC).xy);
     float originDist = length(posW - gCamera.posW);
     float3 randDir = gNoiseTex.Sample(gNoiseSampler, texC * gData.noiseScale).xyz * 2.0f - 1.0f;
 

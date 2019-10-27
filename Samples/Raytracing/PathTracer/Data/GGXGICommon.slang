@@ -45,14 +45,11 @@ shared cbuffer GlobalCB
     float gEmitMult; // Emissives are currently hacked.  Multiply emissive amount by this factor
 }
 
-shared ITexture2D gPos;
-shared ITexture2D gNorm;
-shared ITexture2D gDiffuseMatl;
-shared ITexture2D gSpecMatl;
-shared ITexture2D gExtraMatl;
-shared ITexture2D gEmissive;
+shared ITexture2D gGbufferRT[5];
+shared ITexture2D gDepthTex;
 shared IRWTexture2D gOutput;
 shared ITexture2D gEnvMap;
+shared SamplerState gSampler;
 
 // Payload for our shadow rays.
 struct ShadowRayPayload

@@ -25,44 +25,75 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-#pragma once
-#include "Falcor.h"
+__import Helpers;
 
-// GBuffer channel metadata
-struct GBufferChannelDesc
+
+struct GBufferData
 {
-    const char*   name;     // Canonical channel name
-    const char*   desc;     // Human-readable channel description
-    const char*   texname;  // Name of corresponding ITexture2D in GBufferRT shader code
+    float3 posW;
+    float depth;
+    float3 normW;
+    float3 bitangentW;
+    float3 diffuse;
+    float opacity;
+    float3 specular;
+    float linearRoughness;
+    float3 emissive;
+    float2 motionVec;
 };
 
-// Keep same order as channel description showed below
-enum GBufferRT
+struct GBufferOut
 {
-    DIFFUSE_OPACITY     = 0,
-    SPECULAR_ROUGHNESS  = 1,
-    EMISSIVE            = 2,
-    NORMAL_BITANGENT    = 3,
-    MOTION_VECTOR       = 4,
+    float4 rt0 : SV_TARGET0;
+    float4 rt1 : SV_TARGET1;
+    float4 rt2 : SV_TARGET2;
+    float4 rt3 : SV_TARGET3;
+    float4 rt4 : SV_TARGET4;
 };
 
-// Note that channel order should correspond to SV_TARGET index order used in
-// GBufferRaster's primary fragment shader.
-static const std::vector<GBufferChannelDesc> kGBufferChannelDesc({
-        {"rt0",             "Render target 0",          ""},
-        {"rt1",             "Render target 1",          ""},
-        {"rt2",             "Render target 2",          ""},
-        {"rt3",             "Render target 3",          ""},
-        {"rt4",             "Render target 4",          ""},
-        });
-
-// Culling dictionary key and dropdown mode selection
-static const std::string kCull = "cull";
-
-static const Falcor::Gui::DropdownList kCullModeList =
+GBufferData GBufferDecode(Texture2D RTs[5], Texture2D depthTex, SamplerState sampler, float2 uv, float4x4 matInvViewProj)
 {
-    { (uint32_t)Falcor::RasterizerState::CullMode::None, "None" },
-    { (uint32_t)Falcor::RasterizerState::CullMode::Back, "Back" },
-    { (uint32_t)Falcor::RasterizerState::CullMode::Front, "Front" },
-};
+    GBufferData d;
 
+    d.depth = depthTex.SampleLevel(sampler, uv, 0).r;
+    d.posW = reconstructPositionFromDepth(d.depth, uv, matInvViewProj).xyz;
+
+    float4 tmp = RTs[3].SampleLevel(sampler, uv, 0);
+    d.normW = decodeUnitVector(tmp.xy);
+    d.bitangentW = decodeUnitVector(tmp.zw);
+
+    tmp = RTs[0].SampleLevel(sampler, uv, 0);
+    d.diffuse = tmp.xyz;
+    d.opacity = tmp.w;
+
+    tmp = RTs[1].SampleLevel(sampler, uv, 0);
+    d.specular = tmp.xyz;
+    d.linearRoughness = tmp.w;
+
+    tmp = RTs[2].SampleLevel(sampler, uv, 0);
+    d.emissive = tmp.xyz;
+
+    tmp = RTs[4].SampleLevel(sampler, uv, 0);
+    d.motionVec = tmp.xy;
+
+    return d;
+}
+
+GBufferOut GBufferEncode(GBufferData d)
+{
+    GBufferOut gOut;
+
+    gOut.rt3.xy = encodeUnitVector(d.normW);
+    gOut.rt3.zw = encodeUnitVector(d.bitangentW);
+
+    gOut.rt0.xyz = d.diffuse;
+    gOut.rt0.w = d.opacity;
+    gOut.rt1.xyz = d.specular;
+    gOut.rt1.w = d.linearRoughness;
+    gOut.rt2.xyz = d.emissive;
+    gOut.rt2.w = 0;
+    gOut.rt4.xy = d.motionVec;
+    gOut.rt4.zw = 0;
+
+    return gOut;
+}

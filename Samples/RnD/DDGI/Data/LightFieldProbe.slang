@@ -1,6 +1,6 @@
 #include "HostDeviceData.h"
 
-__import Octahedral;
+__import Helpers;
 
 static const float minThickness = 0.03; // meters
 static const float maxThickness = 0.50; // meters
@@ -387,8 +387,7 @@ TraceResult highResolutionTraceOneRaySegment
             float distAlongRay = dot(probeSpaceHitPoint - probeSpaceRay.origin, probeSpaceRay.direction);
 
             // Read the normal for use in detecting backfaces
-            vec3 normal = texelFetch(lightFieldSurface.normalProbeGrid, lightFieldSurface.pointSampler, ivec3(lightFieldSurface.sizeHighRes.xy * texCoord, probeIndex), 0).xyz;
-            normal = normal * 2 - 1;
+            vec3 normal = decodeUnitVector(texelFetch(lightFieldSurface.normalProbeGrid, lightFieldSurface.pointSampler, ivec3(lightFieldSurface.sizeHighRes.xy * texCoord, probeIndex), 0).xy);
 
             // Only extrude towards and away from the view ray, not perpendicular to it
             // Don't allow extrusion TOWARDS the viewer, only away
