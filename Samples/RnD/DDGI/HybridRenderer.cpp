@@ -451,11 +451,12 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
         }
         renderSkyBox(pRenderContext, mpMainFbo);
 
+        if (mEnableLightFieldProbeRayTracing)
         {
             PROFILE("lightFieldProbeRayTracing");
             GPU_EVENT(pRenderContext, "lightFieldProbeRayTracing");
             Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
-            //mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
+            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
         }
 
         {
@@ -789,7 +790,12 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             pGui->endGroup();
         }
 
-        mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
+        if (pGui->beginGroup("Light Field Probe"))
+        {
+            pGui->addCheckBox("Enable Light Field Probe Ray Tracing", mEnableLightFieldProbeRayTracing);
+            mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
+            pGui->endGroup();
+        }
 
         mpToneMapper->renderUI(pGui, "Tone-Mapping");
 

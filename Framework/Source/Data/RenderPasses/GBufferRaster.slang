@@ -50,6 +50,19 @@ GBufferOut ps(VertexOut vsOut, float4 pixelCrd : SV_POSITION)
     data.specular = sd.specular;
     data.linearRoughness = sd.linearRoughness;
     data.emissive = sd.emissive;
-    data.motionVec = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim);
+
+    // Remove jitter from motion vector. See "Temporal Antialiasing in Uncharted 4" P27
+    // http://advances.realtimerendering.com/s2016/index.html
+#if 1
+    float4 prevPosH = vsOut.prevPosH;
+    prevPosH.xy += prevPosH.w * 2 * float2(gCamera.jitterX, gCamera.jitterY);
+    data.motionVec = calcMotionVector(pixelCrd.xy, prevPosH, gRenderTargetDim);
+#else
+    float2 jitterOffset = float2(gCamera.jitterX, gCamera.jitterY);
+    #ifdef FALCOR_D3D
+        jitterOffset.y *= -1;
+    #endif
+    data.motionVec = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim) + jitterOffset;
+#endif
     return GBufferEncode(data);
 }

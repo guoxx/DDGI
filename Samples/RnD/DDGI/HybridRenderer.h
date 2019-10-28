@@ -167,7 +167,8 @@ private:
     bool mUseCsSkinning = false;
     bool mVisualizeCascades = false;
     bool mEnableSSAO = false;
-    bool mEnableSSR = true;
+    bool mEnableSSR = false;
+    bool mEnableLightFieldProbeRayTracing = false;
     // TODO
     bool mEnableTransparent = false;
     bool mEnableAlphaTest = false;
