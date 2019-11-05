@@ -44,6 +44,10 @@ enum GBufferRT
     EMISSIVE            = 2,
     NORMAL_BITANGENT    = 3,
     MOTION_VECTOR       = 4,
+
+    SVGF_MotionVec          = 5,
+    SVGF_LinearZ            = 6,
+    SVGF_CompactNormDepth   = 7,
 };
 
 // Note that channel order should correspond to SV_TARGET index order used in
@@ -54,7 +58,11 @@ static const std::vector<GBufferChannelDesc> kGBufferChannelDesc({
         {"rt2",             "Render target 2",          ""},
         {"rt3",             "Render target 3",          ""},
         {"rt4",             "Render target 4",          ""},
+        {"svgfMotionVec",           "Render target 5",          ""},
+        {"svgfLinearZ",             "Render target 6",          ""},
+        {"svgfCompactNormDepth",    "Render target 7",          ""},
         });
+
 
 // Culling dictionary key and dropdown mode selection
 static const std::string kCull = "cull";

@@ -18,6 +18,7 @@
     <ClCompile Include="LightFieldProbeVolume.cpp" />
     <ClCompile Include="LightFieldProbeRayTracing.cpp" />
     <ClCompile Include="OctahedralMapping.cpp" />
+    <ClCompile Include="SVGFPass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Framework\Source\Falcor.vcxproj">
@@ -25,12 +26,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Data\SVGFUtils.slang" />
     <ClInclude Include="DownscalePass.h" />
     <ClInclude Include="LightFieldProbeShading.h" />
     <ClInclude Include="HybridRenderer.h" />
     <ClInclude Include="LightFieldProbeVolume.h" />
     <ClInclude Include="LightFieldProbeRayTracing.h" />
     <ClInclude Include="OctahedralMapping.h" />
+    <ClInclude Include="SVGFPass.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\DownscalePass.slang" />
@@ -39,6 +42,9 @@
     <None Include="Data\LightFieldProbeRayTracing.slang" />
     <None Include="Data\LightFieldProbeViewer.ps.slang" />
     <None Include="Data\OctahedralMapping.slang" />
+    <None Include="Data\SVGF_Atrous.slang" />
+    <None Include="Data\SVGF_Reprojection.slang" />
+    <None Include="Data\SVGF_VarianceEstimation.slang" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3373CF0E-C24A-4C74-87B6-59243DBA03E1}</ProjectGuid>

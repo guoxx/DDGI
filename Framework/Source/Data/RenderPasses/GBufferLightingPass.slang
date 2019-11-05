@@ -32,7 +32,7 @@ __import BRDF;
 __import GBuffer;
 
 
-Texture2D gGbufferRT[5];
+Texture2D gGbufferRT[8];
 Texture2D gDepthTex;
 Texture2D visibilityBuffer;
 SamplerState gPointSampler;

@@ -28,6 +28,7 @@
 import Shading;
 import DefaultVS;
 import GBuffer;
+import Helpers;
 
 cbuffer PerFrameCB
 {
@@ -64,5 +65,26 @@ GBufferOut ps(VertexOut vsOut, float4 pixelCrd : SV_POSITION)
     #endif
     data.motionVec = calcMotionVector(pixelCrd.xy, vsOut.prevPosH, gRenderTargetDim) + jitterOffset;
 #endif
-    return GBufferEncode(data);
+
+    GBufferOut psOut = GBufferEncode(data);
+
+    float2 posNormFWidth = float2(length(fwidth(sd.posW)), length(fwidth(sd.N))); 
+    psOut.svgfMotionVec = float4(data.motionVec.xy, posNormFWidth);
+
+    // The 'linearZ' buffer
+    float linearZ    = vsOut.posH.z * vsOut.posH.w;
+#ifdef FALCOR_VK
+    float prevZBuf   = vsOut.prevPosH.z / vsOut.prevPosH.w;
+    float prevLinearZ = prevZBuf / vsOut.prevPosH.w;
+#else
+    float prevLinearZ = vsOut.prevPosH.z;
+#endif
+    float maxChangeZ = max(abs(ddx(linearZ)), abs(ddy(linearZ)));
+    float objNorm    = asfloat(DirToOct(normalize(vsOut.normalW))); // world normal instead of object normal
+    psOut.svgfLinearZ = float4(linearZ, maxChangeZ, prevLinearZ, objNorm);
+
+    // A compacted buffer containing discretizied normal, depth, depth derivative
+    psOut.svgfCompactNormDepth = float4(asfloat(DirToOct(sd.N)), linearZ, maxChangeZ, 0.0f);
+
+    return psOut;
 }

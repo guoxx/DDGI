@@ -694,7 +694,7 @@ float4 psMain(VsOut pIn) : SV_TARGET0
     uint rndSeed = rand_init(asuint(pIn.pos.x * gFrameCount), asuint(pIn.pos.y * gFrameCount));
 
     float3 result = 0;
-    int iterCnt = 4;
+    int iterCnt = 1;
     for (int i = 0; i < iterCnt; ++i)
     {
         float2 rndVal = float2(rand_next(rndSeed), rand_next(rndSeed));
@@ -738,6 +738,6 @@ float4 psMain(VsOut pIn) : SV_TARGET0
 #endif
     }
 
-    result += gColorTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
+    //result += gColorTex.SampleLevel(gPointSampler, pIn.texC, 0).xyz;
     return float4(result, 1);
 }

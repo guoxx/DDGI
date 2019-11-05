@@ -1,5 +1,6 @@
 #include "HostDeviceData.h"
 
+__import BRDF;
 __import Helpers;
 __import LightFieldProbe;
 
@@ -14,7 +15,7 @@ cbuffer PerFrameCB
     float3 gProbeStartPosition;
     float gDummy1;
     float3 gProbeStep;
-    float gDummy2;
+    float gFrameCount;
     float2 gSizeHighRes;
     float2 gSizeLowRes;
 };
@@ -24,6 +25,7 @@ Texture2DArray gOctNormalTex;
 Texture2DArray gOctDistanceTex;
 Texture2DArray gOctLowResDistanceTex;
 Texture2D gNormalTex;
+Texture2D gSpecRoughTex;
 Texture2D gDepthTex;
 
 SamplerState gPointSampler;
@@ -43,43 +45,37 @@ VsOut VSMain(uint id: SV_VertexID)
     return vOut;
 }
 
-struct BoundaryBox
-{
-    float3 bbMin;
-    float3 bbMax;
-    float3 bbCenter;
-};
-
-struct Intersection
-{
-    bool hit;
-    float3 P;
-};
-
-Intersection boxIntersect(in Ray ray, in BoundaryBox bbox)
-{
-    float3 t0 = (bbox.bbMin - ray.origin) / ray.direction;
-    float3 t1 = (bbox.bbMax - ray.origin) / ray.direction;
-    float3 tmp = max(t0, t1);
-    float t = min(min(tmp.x, tmp.y), tmp.z);
-
-    Intersection its;
-    its.hit = t > 0;
-    its.P = ray.origin + ray.direction * t;
-    return its;
-}
-
 float4 PSMain(VsOut pIn) : SV_TARGET0
 {
     if (gDepthTex.SampleLevel(gPointSampler, pIn.texC, 0).r >= 1.0)
         return 0;
 
     float3 P = reconstructPositionFromDepth(gDepthTex, gPointSampler, pIn.texC, gInvViewProjMat).xyz;
-    float3 V = normalize(gCameraPos.xyz - P);
+    float3 Wo = normalize(gCameraPos.xyz - P);
 
     float3 N = decodeUnitVector(gNormalTex.SampleLevel(gPointSampler, pIn.texC, 0).xy);
 
-    float3 Wi = reflect(-V, N);
+    float4 specRough = gSpecRoughTex.SampleLevel(gPointSampler, pIn.texC, 0);
+    float3 specularColor = specRough.rgb;
+    float linearRoughness = specRough.a;
+    float alpha = linearRoughness * linearRoughness;
+
+    uint rndSeed = rand_init(asuint(pIn.pos.x * gFrameCount), asuint(pIn.pos.y * gFrameCount));
+    float3 result = 0;
+    int sampleCnt = 1;
+    for (int i = 0; i < sampleCnt; ++i)
+    {
+
+    float2 rndVal = float2(rand_next(rndSeed), rand_next(rndSeed));
+    float3 Wh = getGGXMicrofacet(rndVal, N, alpha);
+    const float3 Wi = reflect(-Wo, Wh);
+
+    if (dot(Wi, N) <= 0)
+    {
+        continue;
+    }
+
+    //float3 Wi = reflect(-V, N);
     Ray reflectRay = {P+Wi*0.02, Wi};
 
     LightFieldSurface lightFieldSurf;
@@ -99,6 +95,8 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
 
     Ray worldSpaceRay = reflectRay;
 
+    float3 Li = 0;
+
 #if 1
     bool fillHoles = false;
     float hitDistance = 10000;
@@ -106,7 +104,7 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     int probeIndex;
     if (trace(lightFieldSurf, worldSpaceRay, hitDistance, hitProbeTexCoord, probeIndex, fillHoles))
     {
-        return lightFieldSurf.radianceProbeGrid.SampleLevel(gLinearSampler, float3(hitProbeTexCoord, probeIndex), 0);
+        Li = lightFieldSurf.radianceProbeGrid.SampleLevel(gLinearSampler, float3(hitProbeTexCoord, probeIndex), 0).rgb;
     }
 #else
     int probeIdx = 1;
@@ -121,34 +119,28 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     int traceResult = traceOneProbeOct(lightFieldSurf, probeIdx, worldSpaceRay, tMin, tMax, hitProbeTexCoord);
     if (traceResult == 1)
     {
-        return lightFieldSurf.radianceProbeGrid.SampleLevel(gPointSampler, float3(hitProbeTexCoord, probeIdx), 0);
+        Li = lightFieldSurf.radianceProbeGrid.SampleLevel(gPointSampler, float3(hitProbeTexCoord, probeIdx), 0).rgb;
     }
 #endif
-    return float4(0, 0,0,1);
 
-    BoundaryBox bbox;
-    float3 center = {-0.875000000, 1.22500002, 0.875000000 };
-    float3 extent = {1.87500000, 1.27499998, 1.87500000};
-    bbox.bbMin = center - extent;
-    bbox.bbMax = center + extent;
-    bbox.bbCenter = (bbox.bbMin + bbox.bbMax) / 2;
+    float NdotL = saturate(dot(N, Wi));
+    float NdotV = saturate(dot(N, Wo));
+    float NdotH = saturate(dot(N, Wh));
+    float LdotH = saturate(dot(Wi, Wh));
 
-    Intersection its = boxIntersect(reflectRay, bbox);
-    if (its.hit)
-    {
-        float4 projP = mul(float4(its.P, 1), gViewProjMat);
-        projP /= projP.w;
-        float3 N_prime = gNormalTex.SampleLevel(gPointSampler, NdcToUv(projP.xy), 0).xyz * 2 - 1;
+    // Probability in terms of Wi vector, NDF term was cancelled by specular BRDF
+    float pdf = NdotH / (4 * LdotH);
 
-        float3 dir = its.P - bbox.bbCenter;
-        dir = normalize(dir);
-        float2 uv = OctToUv(octEncode(dir));
-        //if (dot(N_prime, reflectRay.dir) < 0)
-        {
-            float3 result = gOctRadianceTex.SampleLevel(gPointSampler, float3(uv, 0), 0).xyz;
-            return float4(result, 1);
-        }
+    float G = evalSmithGGX(NdotL, NdotV, alpha);
+    float3 F = fresnelSchlick(specularColor, 1, LdotH);
+
+    // 4 * NdotL * NdotV cancelled by G term
+    // NDF cancelled by pdf
+    float3 specularBrdf = G * F;
+
+    result += Li * specularBrdf * NdotL / pdf;
+    //result += Li * NdotL;
     }
 
-    return float4(1, 0, 0, 1);
+    return float4(result/sampleCnt, 1.0);
 }

@@ -35,6 +35,7 @@
 #include "Experimental/RenderPasses/ForwardLightingPass.h"
 #include "LightFieldProbeVolume.h"
 #include "LightFieldProbeRayTracing.h"
+#include "SVGFPass.h"
 
 using namespace Falcor;
 
@@ -55,7 +56,7 @@ private:
     Fbo::SharedPtr mpDepthPassFbo;
     Fbo::SharedPtr mpResolveFbo;
     Fbo::SharedPtr mpPostProcessFbo;
-    Fbo::SharedPtr mpSSRFbo;
+    Fbo::SharedPtr mpTempFP16Fbo;
     Texture::SharedPtr mpHZBTexture;
 
     ForwardLightingPass::SharedPtr mpForwardPass;
@@ -64,15 +65,20 @@ private:
     DepthPass::SharedPtr mpDepthPass;
     GBufferRaster::SharedPtr mpGBufferRaster;
     GBufferLightingPass::SharedPtr mpGBufferLightingPass;
-    BlitPass::SharedPtr mpBlitPass;
     HierarchicalZBuffer::SharedPtr mpHZBPass;
     ScreenSpaceReflection::SharedPtr mpSSRPass;
     ToneMapping::SharedPtr mpToneMapper;
     SSAO::SharedPtr mpSSAO;
     FXAA::SharedPtr mpFXAA;
 
+    SVGFPass::SharedPtr mpLightFieldRTDenoiser;
+    SVGFPass::SharedPtr mpSSRDenoiser;
+
     LightFieldProbeVolume::SharedPtr mpLightProbeVolume;
     LightFieldProbeRayTracing::SharedPtr mpLightProbeRayTracer;
+
+    BlitPass::SharedPtr mpBlitPass;
+    BlitPass::SharedPtr mpAdditiveBlitPass;
 
     //  The Temporal Anti-Aliasing Pass.
     class
@@ -168,7 +174,13 @@ private:
     bool mVisualizeCascades = false;
     bool mEnableSSAO = false;
     bool mEnableSSR = false;
+    bool mEnableSSRDenoiser = false;
     bool mEnableLightFieldProbeRayTracing = false;
+    bool mEnableLightFieldProbeDenoise = false;
+
+    bool mDebugDisplayLightFieldRT = false;
+    bool mDebugDisplaySSR = false;
+
     // TODO
     bool mEnableTransparent = false;
     bool mEnableAlphaTest = false;

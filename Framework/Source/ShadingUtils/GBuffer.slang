@@ -49,9 +49,13 @@ struct GBufferOut
     float4 rt2 : SV_TARGET2;
     float4 rt3 : SV_TARGET3;
     float4 rt4 : SV_TARGET4;
+
+    float4 svgfMotionVec        : SV_TARGET5; // .rg motion vector, .b position derivative, .a normal derivative
+    float4 svgfLinearZ          : SV_TARGET6; // .r linear Z, .g max Z derivative, .b last frame Z, .a obj space normal
+    float4 svgfCompactNormDepth : SV_TARGET7; // .r world normal, .g linear Z, .b Z derivative
 };
 
-GBufferData GBufferDecode(Texture2D RTs[5], Texture2D depthTex, SamplerState sampler, float2 uv, float4x4 matInvViewProj)
+GBufferData GBufferDecode(Texture2D RTs[8], Texture2D depthTex, SamplerState sampler, float2 uv, float4x4 matInvViewProj)
 {
     GBufferData d;
 

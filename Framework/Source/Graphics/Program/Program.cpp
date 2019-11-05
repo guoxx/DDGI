@@ -477,7 +477,11 @@ namespace Falcor
         slangFlags |= SLANG_COMPILE_FLAG_NO_CHECKING | SLANG_COMPILE_FLAG_SPLIT_MIXED_TYPES;
         spSetCompileFlags(slangRequest, slangFlags);
 
-        if (is_set(mDesc.getCompilerFlags(), Shader::CompilerFlags::EmitDebugInfo))
+        bool emitDebugInfo = is_set(mDesc.getCompilerFlags(), Shader::CompilerFlags::EmitDebugInfo);
+#if defined(_DEBUG) || defined(DEBUG)
+        emitDebugInfo = true;
+#endif
+        if (emitDebugInfo)
         {
             spSetDebugInfoLevel(slangRequest, SLANG_DEBUG_INFO_LEVEL_STANDARD);
         }

@@ -41,7 +41,7 @@ namespace Falcor
             float3 gProbeStartPosition;
             float gDummy1;
             float3 gProbeStep;
-            float gDummy2;
+            float gFrameCount = 1.0;;
             float2 gSizeHighRes;
             float2 gSizeLowRes;
         } mConstantData;

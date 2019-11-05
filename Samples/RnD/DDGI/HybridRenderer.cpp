@@ -156,6 +156,13 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     mpGBufferLightingPass->setScene(pScene);
 
     mpBlitPass = BlitPass::create();
+
+    mpAdditiveBlitPass = BlitPass::create();
+    mpAdditiveBlitPass->setEnableBlend(0, true);
+    mpAdditiveBlitPass->setBlendParams(0,
+        BlendState::BlendOp::Add, BlendState::BlendOp::Add,
+        BlendState::BlendFunc::One, BlendState::BlendFunc::One,
+        BlendState::BlendFunc::One, BlendState::BlendFunc::Zero);
     
     mpToneMapper = ToneMapping::create(ToneMapping::Operator::Fixed);
     mpToneMapper->setExposureValue(-1);
@@ -302,9 +309,25 @@ void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedP
         GPU_EVENT(pContext, "SSR");
         Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
         const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mpSSRPass->execute(pContext, pCamera, pColorIn, mpHZBTexture, mpGBufferFbo, mpSSRFbo);
+        mpSSRPass->execute(pContext, pCamera, pColorIn, mpHZBTexture, mpGBufferFbo, mpTempFP16Fbo);
 
-        pContext->blit(mpSSRFbo->getColorTexture(0)->getSRV(), pColorIn->getRTV());
+        Texture::SharedPtr pSSRTex = mpTempFP16Fbo->getColorTexture(0);
+        if (mEnableSSRDenoiser)
+        {
+            Texture::SharedPtr motionVec = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_MotionVec);
+            Texture::SharedPtr linearZ = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_LinearZ);
+            Texture::SharedPtr normalDepth = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_CompactNormDepth);
+            pSSRTex = mpSSRDenoiser->Execute(pContext, pSSRTex, motionVec, linearZ, normalDepth);
+        }
+
+        if (mDebugDisplaySSR)
+        {
+            mpBlitPass->execute(pContext, pSSRTex, pColorIn);
+        }
+        else
+        {
+            mpAdditiveBlitPass->execute(pContext, pSSRTex, pColorIn);
+        }
     }
 }
 
@@ -456,7 +479,25 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             PROFILE("lightFieldProbeRayTracing");
             GPU_EVENT(pRenderContext, "lightFieldProbeRayTracing");
             Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
-            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpMainFbo);
+            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpTempFP16Fbo);
+            Texture::SharedPtr rtOutput = mpTempFP16Fbo->getColorTexture(0);
+            if (mEnableLightFieldProbeDenoise)
+            {
+                rtOutput = mpLightFieldRTDenoiser->Execute(pRenderContext,
+                    rtOutput,
+                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_MotionVec),
+                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_LinearZ),
+                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_CompactNormDepth));
+            }
+
+            if (mDebugDisplayLightFieldRT)
+            {
+                mpBlitPass->execute(pRenderContext, rtOutput, mpMainFbo->getColorTexture(0));
+            }
+            else
+            {
+                mpAdditiveBlitPass->execute(pRenderContext, rtOutput, mpMainFbo->getColorTexture(0));
+            }
         }
 
         {
@@ -537,9 +578,12 @@ void HybridRenderer::onResizeSwapChain(SampleCallbacks* pSample, uint32_t width,
 
     mpSSRPass->onResize(width, height);
 
-    Fbo::Desc ssrFboDesc;
-    ssrFboDesc.setColorTarget(0, ResourceFormat::RGBA32Float);
-    mpSSRFbo = FboHelper::create2D(width, height, ssrFboDesc);
+    Fbo::Desc FP16FboDesc;
+    FP16FboDesc.setColorTarget(0, ResourceFormat::RGBA16Float);
+    mpTempFP16Fbo = FboHelper::create2D(width, height, FP16FboDesc);
+
+    mpLightFieldRTDenoiser = SVGFPass::create(width, height);
+    mpSSRDenoiser = SVGFPass::create(width, height);
 
     mpHZBTexture = HierarchicalZBuffer::createHZBTexture(width, height);
 
@@ -793,7 +837,10 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
         if (pGui->beginGroup("Light Field Probe"))
         {
             pGui->addCheckBox("Enable Light Field Probe Ray Tracing", mEnableLightFieldProbeRayTracing);
+            pGui->addCheckBox("Enable Denoiser", mEnableLightFieldProbeDenoise);
+            pGui->addCheckBox("Display Light Field Ray Tracing Result (DEBUG)", mDebugDisplayLightFieldRT);
             mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
+            mpLightFieldRTDenoiser->RenderGui(pGui, "SVGF");
             pGui->endGroup();
         }
 
@@ -802,7 +849,10 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
         if (pGui->beginGroup("SSR"))
         {
             pGui->addCheckBox("Enable SSR", mEnableSSR);
-            mpSSRPass->renderUI(pGui);
+            pGui->addCheckBox("Enable Denoiser", mEnableSSRDenoiser);
+            pGui->addCheckBox("Display SSR Result (DEBUG)", mDebugDisplaySSR);
+            mpSSRPass->renderUI(pGui, "SSR Settings");
+            mpSSRDenoiser->RenderGui(pGui, "SVGF");
 
             pGui->endGroup();
         }

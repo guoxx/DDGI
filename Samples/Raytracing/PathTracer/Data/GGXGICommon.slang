@@ -45,7 +45,7 @@ shared cbuffer GlobalCB
     float gEmitMult; // Emissives are currently hacked.  Multiply emissive amount by this factor
 }
 
-shared ITexture2D gGbufferRT[5];
+shared ITexture2D gGbufferRT[8];
 shared ITexture2D gDepthTex;
 shared IRWTexture2D gOutput;
 shared ITexture2D gEnvMap;
