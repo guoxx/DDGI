@@ -15,7 +15,10 @@
       <Filter>Externals\dear_imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\Externals\dear_imgui_addons\imguinodegrapheditor\imguinodegrapheditor.cpp">
-      <Filter>Externals\dear_imgui_addons</Filter>
+      <Filter>Externals\dear_imgui_addons\imguinodegrapheditor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Externals\dear_imgui_addons\imguizmo.quat\imGuIZMOquat.cpp">
+      <Filter>Externals\dear_imgui_addons\imguizmo.quat</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -27,6 +30,12 @@
     </Filter>
     <Filter Include="Externals\dear_imgui_addons">
       <UniqueIdentifier>{8d6b13a1-6495-4f78-8fe6-3a4aa069d9d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Externals\dear_imgui_addons\imguinodegrapheditor">
+      <UniqueIdentifier>{6eba50e1-e70e-40ec-a5b0-09170bc4c3db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Externals\dear_imgui_addons\imguizmo.quat">
+      <UniqueIdentifier>{fdfce286-722c-4d97-b3de-dfff09cbabe9}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -49,7 +58,19 @@
       <Filter>Externals\dear_imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\Externals\dear_imgui_addons\imguinodegrapheditor\imguinodegrapheditor.h">
-      <Filter>Externals\dear_imgui_addons</Filter>
+      <Filter>Externals\dear_imgui_addons\imguinodegrapheditor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmoConfig.h">
+      <Filter>Externals\dear_imgui_addons\imguizmo.quat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmoMath.h">
+      <Filter>Externals\dear_imgui_addons\imguizmo.quat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\imGuIZMOquat.h">
+      <Filter>Externals\dear_imgui_addons\imguizmo.quat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmo.h">
+      <Filter>Externals\dear_imgui_addons\imguizmo.quat</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

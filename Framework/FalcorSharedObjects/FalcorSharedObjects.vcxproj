@@ -24,6 +24,7 @@
     <ClCompile Include="..\Externals\dear_imgui\imgui_draw.cpp" />
     <ClCompile Include="..\Externals\dear_imgui\imgui_widgets.cpp" />
     <ClCompile Include="..\Externals\dear_imgui_addons\imguinodegrapheditor\imguinodegrapheditor.cpp" />
+    <ClCompile Include="..\Externals\dear_imgui_addons\imguizmo.quat\imGuIZMOquat.cpp" />
     <ClCompile Include="FalcorSharedObjects.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -34,6 +35,10 @@
     <ClInclude Include="..\Externals\dear_imgui\stb_textedit.h" />
     <ClInclude Include="..\Externals\dear_imgui\stb_truetype.h" />
     <ClInclude Include="..\Externals\dear_imgui_addons\imguinodegrapheditor\imguinodegrapheditor.h" />
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\imGuIZMOquat.h" />
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmo.h" />
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmoConfig.h" />
+    <ClInclude Include="..\Externals\dear_imgui_addons\imguizmo.quat\vGizmoMath.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Externals\dear_imgui\LICENSE" />

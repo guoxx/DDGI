@@ -35,6 +35,7 @@
 #include "Utils/Math/FalcorMath.h"
 #include "glm/gtc/type_ptr.hpp"
 #include "Utils/StringUtils.h"
+#include <Externals/dear_imgui_addons/imguizmo.quat/imGuIZMOquat.h>
 
 #pragma warning (disable : 4756) // overflow in constant arithmetic caused by calculating the setFloat*() functions (when calculating the step and min/max are +/- INF)
 namespace Falcor
@@ -984,9 +985,9 @@ namespace Falcor
 
     bool Gui::addDirectionWidget(const char label[], glm::vec3& direction)
     {
+        bool b = ImGui::gizmo3D(label, direction);
         glm::vec3 dir = direction;
-        bool b = addFloat3Var(label, dir, -1, 1);
-        direction = glm::normalize(dir);
+        addFloat3Var(label, dir, -1, 1);
         return b;
     }
 
