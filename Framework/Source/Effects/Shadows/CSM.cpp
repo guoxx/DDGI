@@ -124,14 +124,15 @@ namespace Falcor
 
         RasterizerState::SharedPtr getRasterizerState(const Material* pMaterial)
         {
-            if (pMaterial->getAlphaMode() == AlphaModeMask)
-            {
+            // TODO: take doubleSide property of material into account
+            //if (pMaterial->getAlphaMode() == AlphaModeMask)
+            //{
                 return mDepthClamp ? mpDepthClampNoCullRS : mpNoCullRS;
-            }
-            else
-            {
-                return mDepthClamp ? mpDepthClampRS : nullptr;
-            }
+            //}
+            //else
+            //{
+            //    return mDepthClamp ? mpDepthClampRS : nullptr;
+            //}
         }
 
         bool setPerMaterialData(const CurrentWorkingData& currentData, const Material* pMaterial) override

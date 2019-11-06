@@ -111,7 +111,7 @@ PsOut PSMain(VsOut pIn)
             shadowFactor = visibilityBuffer.Load(int3(pixelCrd.xy, 0)).r;
             shadowFactor *= sd.opacity;
         }
-        finalColor.rgb += evalMaterial(sd, gLights[l], shadowFactor).diffuse.rgb;
+        finalColor.rgb += evalMaterial(sd, gLights[l], shadowFactor).diffuse.rgb*shadowFactor;
     }
 
     // Add the emissive component
