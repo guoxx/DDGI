@@ -25,30 +25,37 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-__import DefaultVS;
-__import Helpers;
-__import Shading;
-__import LightFieldProbe;
+#pragma once
+#include "Falcor.h"
 
-cbuffer PerInstanceData
+using namespace Falcor;
+
+class LightFieldProbeFiltering : public RenderPass, inherit_shared_from_this<RenderPass, LightFieldProbeFiltering>
 {
-    int3 gProbeCounts;
-    int gProbeIdx;
-}
+public:
+    using SharedPtr = std::shared_ptr<LightFieldProbeFiltering>;
 
-Texture2DArray gColorTex;
-SamplerState gSampler;
+    static SharedPtr create(const Dictionary& dict = {});
 
-float4 main(VertexOut vOut) : SV_TARGET
-{
-    ShadingData sd = prepareShadingData(vOut, gMaterial, gCamera.posW);
+    void execute(RenderContext* pContext,
+                 const Texture::SharedPtr& pRadianceTex,
+                 const Texture::SharedPtr pDistanceTex,
+                 int arrayIndex,
+                 const Fbo::SharedPtr& pTargetFbo);
 
-#if defined(_PROBE_COLOR)
-    return float4(probeIndexToColor(gProbeCounts, gProbeIdx), 0);
-#else
-    float3 dir = sd.N;
-    float2 uv = OctToUv(octEncode(dir));
-//    float2 uv = dirToSphericalCrd(dir);
-    return gColorTex.SampleLevel(gSampler, float3(uv, gProbeIdx), 0);
-#endif
-}
+    RenderPassReflection reflect() const override;
+    void execute(RenderContext* pContext, const RenderData* pRenderData) override;
+
+    std::string getDesc(void) override { return "Light field probe filtering"; }
+
+private:
+    LightFieldProbeFiltering();
+
+    int mSampleCount = 1024;
+    float mFrameCount = 1;
+    float mDepthSharpness = 50;
+
+    GraphicsState::SharedPtr mpState;
+    GraphicsProgram::SharedPtr mpProgram;
+    GraphicsVars::SharedPtr mpVars;
+};

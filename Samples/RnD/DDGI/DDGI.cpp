@@ -37,6 +37,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     config.windowDesc.height = 900;
     config.windowDesc.title = "Falcor Project Template";
     config.windowDesc.resizableWindow = true;
+    //config.deviceDesc.enableDebugLayer = true;
     Sample::run(config, pRenderer);
     return 0;
 }

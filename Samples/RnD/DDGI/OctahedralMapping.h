@@ -38,9 +38,7 @@ public:
     static SharedPtr create(const Dictionary& dict = {});
 
     void execute(RenderContext* pContext,
-                 const Texture::SharedPtr& pFacePosX, const Texture::SharedPtr pFaceNegX,
-                 const Texture::SharedPtr& pFacePosY, const Texture::SharedPtr pFaceNegY,
-                 const Texture::SharedPtr& pFacePosZ, const Texture::SharedPtr pFaceNegZ,
+                 const Texture::SharedPtr& pCubemap,
                  const Fbo::SharedPtr& pTargetFbo);
 
     RenderPassReflection reflect() const override;

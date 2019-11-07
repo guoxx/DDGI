@@ -177,7 +177,6 @@ namespace Falcor
             }
             break;
         case Resource::Type::Texture2D:
-        case Resource::Type::TextureCube:
             if(pTexture->getArraySize() * arrayMultiplier > 1)
             {
                 desc.Texture2DArray.ArraySize = arraySize * arrayMultiplier;
@@ -187,6 +186,19 @@ namespace Falcor
             else
             {
                 desc.Texture2D.MipSlice = mipLevel;
+            }
+            break;
+        case Resource::Type::TextureCube:
+            if(pTexture->getArraySize() > 1)
+            {
+                // TODO: not supported yet
+                should_not_get_here();
+            }
+            else
+            {
+                desc.Texture2DArray.ArraySize = arraySize;
+                desc.Texture2DArray.FirstArraySlice = firstArraySlice;
+                desc.Texture2DArray.MipSlice = mipLevel;
             }
             break;
         default:

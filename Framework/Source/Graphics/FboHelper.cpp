@@ -143,9 +143,12 @@ namespace Falcor
             // create the color targets
             for(uint32_t i = 0; i < Fbo::getMaxColorTargetCount(); i++)
             {
-                Texture::BindFlags flags = getBindFlags(false, fboDesc.isColorTargetUav(i));
-                auto pTex = Texture::createCube(width, height, fboDesc.getColorTargetFormat(i), arraySize, mipLevels, nullptr, flags);
-                pFbo->attachColorTarget(pTex, i, 0, Fbo::kAttachEntireMipLevel);
+                if (fboDesc.getColorTargetFormat(i) != ResourceFormat::Unknown)
+                {
+                    Texture::BindFlags flags = getBindFlags(false, fboDesc.isColorTargetUav(i));
+                    auto pTex = Texture::createCube(width, height, fboDesc.getColorTargetFormat(i), arraySize, mipLevels, nullptr, flags);
+                    pFbo->attachColorTarget(pTex, i, 0, Fbo::kAttachEntireMipLevel);
+                }
             }
 
             if(fboDesc.getDepthStencilFormat() != ResourceFormat::Unknown)

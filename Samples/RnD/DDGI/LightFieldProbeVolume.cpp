@@ -31,6 +31,13 @@
 
 namespace Falcor
 {
+    const Gui::DropdownList LightFieldProbeVolume::sLightFieldDebugDisplayModeList =
+    {
+        { LightFieldDebugDisplay::Radiance, "Radiance" },
+        { LightFieldDebugDisplay::Irradiance, "Irradiance" },
+        { LightFieldDebugDisplay::ProbeColor, "Probe Color" }
+    };
+
     class ProbesRenderer : public SceneRenderer
     {
     public:
@@ -53,6 +60,7 @@ namespace Falcor
         mpRaster = GBufferRaster::create(RasterizerState::CullMode::None);
         mpShading = LightFieldProbeShading::create();
         mpOctMapping = OctahedralMapping::create();
+        mpFiltering = LightFieldProbeFiltering::create();
         mpDownscalePass = DownscalePass::create();
 
         loadDebugResources();
@@ -69,8 +77,10 @@ namespace Falcor
         // Initialize graphics resources
         mDebugger.pPipelineState = GraphicsState::create();
 
-        mDebugger.pProgram = GraphicsProgram::createFromFile("LightFieldProbeViewer.ps.slang", "", "main");
-        mDebugger.pPipelineState->setProgram(mDebugger.pProgram);
+        Program::DefineList definesList;
+        if (mDebugger.debugDisplayMode == ProbeColor)
+            definesList.add("_PROBE_COLOR", "1");
+        mDebugger.pProgram = GraphicsProgram::createFromFile("LightFieldProbeViewer.ps.slang", "", "main", definesList);
 
         auto pRasterizerState = RasterizerState::create(RasterizerState::Desc().setCullMode(RasterizerState::CullMode::Back));
         auto pDepthState = DepthStencilState::create(DepthStencilState::Desc().setDepthTest(true));
@@ -78,8 +88,8 @@ namespace Falcor
         mDebugger.pPipelineState->setDepthStencilState(pDepthState);
 
         mDebugger.pProgVars = GraphicsVars::create(mDebugger.pProgram->getActiveVersion()->getReflector());
-        auto pLinearSampler = Sampler::create(Sampler::Desc().setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear));
-        mDebugger.pProgVars->setSampler("gLinearSampler", pLinearSampler);
+        auto pSampler = Sampler::create(Sampler::Desc().setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point));
+        mDebugger.pProgVars->setSampler("gSampler", pSampler);
     }
 
     void LightFieldProbeVolume::unloadDebugResources()
@@ -95,9 +105,21 @@ namespace Falcor
             return;
         }
 
-        mDebugger.pPipelineState->setFbo(pTargetFbo);
+        if (mDebugger.debugDisplayMode == ProbeColor)
+        {
+        }
+        else if (mDebugger.debugDisplayMode == Radiance)
+        {
+            mDebugger.pProgVars->setTexture("gColorTex", mpRadianceFbo->getColorTexture(0));
+        }
+        else if (mDebugger.debugDisplayMode == Irradiance)
+        {
+            mDebugger.pProgVars->setTexture("gColorTex", mpFilteredFbo->getColorTexture(0));
+        }
+        mDebugger.pProgVars["PerInstanceData"]["gProbeCounts"] = mProbesCount;
 
-        mDebugger.pProgVars->setTexture("gColorTex", mpRadianceFbo->getColorTexture(0));
+        mDebugger.pPipelineState->setProgram(mDebugger.pProgram);
+        mDebugger.pPipelineState->setFbo(pTargetFbo);
 
         pContext->pushGraphicsState(mDebugger.pPipelineState);
         pContext->pushGraphicsVars(mDebugger.pProgVars);
@@ -147,6 +169,18 @@ namespace Falcor
                 {
                     p.mVisible = mVisualizeProbes;
                     mDebugger.pScene->getModelInstance(0, p.mProbeIdx)->setVisible(p.mVisible);
+                }
+            }
+
+            if (pGui->addDropdown("Probe Display Mode (DEBUG)", sLightFieldDebugDisplayModeList, ((uint32_t&)mDebugger.debugDisplayMode)))
+            {
+                if (mDebugger.debugDisplayMode == ProbeColor)
+                {
+                    mDebugger.pProgram->addDefine("_PROBE_COLOR", "1");
+                }
+                else
+                {
+                    mDebugger.pProgram->removeDefine("_PROBE_COLOR");
                 }
             }
 
@@ -223,15 +257,17 @@ namespace Falcor
         mpDistanceFbo = FboHelper::create2D(OctahedralResolution, OctahedralResolution, fboDesc, numProbes);
         mpLowResDistanceFbo = FboHelper::create2D(OctahedralResolutionLowRes, OctahedralResolutionLowRes, fboDesc, numProbes);
 
+        Fbo::Desc filterredFboDesc;
+        filterredFboDesc.setColorTarget(0, ResourceFormat::R11G11B10Float);
+        filterredFboDesc.setColorTarget(1, ResourceFormat::RG16Float);
+        mpFilteredFbo = FboHelper::create2D(FilteredFboResolution, FilteredFboResolution, filterredFboDesc, numProbes);
+
         mpTempGBufferFbo = GBufferRaster::createGBufferFbo(CubemapResolution, CubemapResolution, true);;
         Fbo::Desc lfFboDesc;
         lfFboDesc.setColorTarget(0, ResourceFormat::RGBA16Float);
         lfFboDesc.setColorTarget(1, ResourceFormat::RGBA16Float);
         lfFboDesc.setColorTarget(2, ResourceFormat::R32Float);
-        for (int i = 0; i < ARRAYSIZE(mpTempLightFieldFbos); ++i)
-        {
-            mpTempLightFieldFbos[i] = FboHelper::create2D(CubemapResolution, CubemapResolution, lfFboDesc);
-        }
+        mpTempLightFieldFbo = FboHelper::createCubemap(CubemapResolution, CubemapResolution, lfFboDesc);
     }
 
     void LightFieldProbeVolume::updateProbesAllocation()
@@ -310,8 +346,8 @@ namespace Falcor
                 glm::vec3(-1, 0, 0),
                 glm::vec3(0, 1, 0),
                 glm::vec3(0, -1, 0),
-                glm::vec3(0, 0, 1),
                 glm::vec3(0, 0, -1),
+                glm::vec3(0, 0, 1),
             };
 
             glm::vec3 upVec[6] = {
@@ -323,11 +359,9 @@ namespace Falcor
                 glm::vec3(0, 1, 0),
             };
 
-
             for (int i = 0; i < ARRAYSIZE(targetVec); ++i)
             {
                 pContext->clearFbo(mpTempGBufferFbo.get(), vec4(0), 1.f, 0, FboAttachmentType::All);
-                pContext->clearFbo(mpTempLightFieldFbos[i].get(), vec4(0), 1.f, 0, FboAttachmentType::All);
 
                 Camera::SharedPtr pCamera = Camera::create();
                 pCamera->setPosition(probe.mProbePosition);
@@ -341,8 +375,12 @@ namespace Falcor
 
                 mpShadowPass->generateVisibilityBuffer(pContext, pCamera.get(), mpTempGBufferFbo->getDepthStencilTexture());
 
+                Fbo::SharedPtr tmpTempLightFieldFbo = Fbo::create();
+                tmpTempLightFieldFbo->attachColorTarget(mpTempLightFieldFbo->getColorTexture(0), 0, 0, i);
+                tmpTempLightFieldFbo->attachColorTarget(mpTempLightFieldFbo->getColorTexture(1), 1, 0, i);
+                tmpTempLightFieldFbo->attachColorTarget(mpTempLightFieldFbo->getColorTexture(2), 2, 0, i);
                 mpShading->setCamera(pCamera);
-                mpShading->execute(pContext, mpTempGBufferFbo, mpShadowPass->getVisibilityBuffer(), mpTempLightFieldFbos[i]);
+                mpShading->execute(pContext, mpTempGBufferFbo, mpShadowPass->getVisibilityBuffer(), tmpTempLightFieldFbo);
             }
 
             Fbo::SharedPtr tmpRadianceFbo = Fbo::create();
@@ -357,12 +395,13 @@ namespace Falcor
             Fbo::SharedPtr pTargetFbos[3] = {tmpRadianceFbo, tmpNormalFbo, tmpDistanceFbo};
             for (int i = 0; i < 3; ++i)
             {
-                mpOctMapping->execute(pContext,
-                                      mpTempLightFieldFbos[0]->getColorTexture(i), mpTempLightFieldFbos[1]->getColorTexture(i),
-                                      mpTempLightFieldFbos[2]->getColorTexture(i), mpTempLightFieldFbos[3]->getColorTexture(i),
-                                      mpTempLightFieldFbos[4]->getColorTexture(i), mpTempLightFieldFbos[5]->getColorTexture(i),
-                                      pTargetFbos[i]);
+                mpOctMapping->execute(pContext, mpTempLightFieldFbo->getColorTexture(i), pTargetFbos[i]);
             }
+
+            Fbo::SharedPtr tmpFilteredFbo = Fbo::create();
+            tmpFilteredFbo->attachColorTarget(mpFilteredFbo->getColorTexture(0), 0, 0, probe.mProbeIdx);
+            tmpFilteredFbo->attachColorTarget(mpFilteredFbo->getColorTexture(1), 1, 0, probe.mProbeIdx);
+            mpFiltering->execute(pContext, tmpRadianceFbo->getColorTexture(0), tmpDistanceFbo->getColorTexture(0), probe.mProbeIdx, tmpFilteredFbo);
 
             mpDownscalePass->execute(pContext, tmpDistanceFbo->getColorTexture(0), probe.mProbeIdx, tmpLowResDistanceFbo);
         }

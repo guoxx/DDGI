@@ -50,6 +50,13 @@ const Gui::DropdownList renderPathList =
     { 1, "Forward"},
 };
 
+const Gui::DropdownList indirectSpecularMethodList =
+{
+    { 0, "None"},
+    { 1, "ScreenSpaceReflection"},
+    { 2, "LightFieldProbeRayTracing"},
+};
+
 void HybridRenderer::initShadowPass(uint32_t windowWidth, uint32_t windowHeight)
 {
     mpShadowPass = CascadedShadowMaps::create(mpSceneRenderer->getScene()->getLight(0), 2048, 2048, windowWidth, windowHeight, mpSceneRenderer->getScene()->shared_from_this());
@@ -63,9 +70,6 @@ void HybridRenderer::initLightFieldProbes(const Scene::SharedPtr& pScene)
 {
     mpLightProbeVolume = LightFieldProbeVolume::create();
     mpLightProbeVolume->setScene(pScene);
-
-    mpLightProbeRayTracer = LightFieldProbeRayTracing::create();
-    mpLightProbeRayTracer->setScene(pScene);
 }
 
 void HybridRenderer::setSceneSampler(uint32_t maxAniso)
@@ -166,6 +170,15 @@ void HybridRenderer::initScene(SampleCallbacks* pSample, Scene::SharedPtr pScene
     
     mpToneMapper = ToneMapping::create(ToneMapping::Operator::Fixed);
     mpToneMapper->setExposureValue(-1);
+
+    mpIndirectDiffuseRayTracer = LightFieldProbeRayTracing::create(LightFieldProbeRayTracing::Diffuse);
+    mpIndirectDiffuseRayTracer->setScene(pScene);
+
+    mpIndirectSpecularRayTracer = LightFieldProbeRayTracing::create(LightFieldProbeRayTracing::Specular);
+    mpIndirectSpecularRayTracer->setScene(pScene);
+
+    mpIndirectDiffuse = IndirectLighting::create(IndirectLighting::Diffuse);
+    mpIndirectSpecular = IndirectLighting::create(IndirectLighting::Specular);
 
     pSample->setCurrentTime(0);
 
@@ -301,32 +314,85 @@ void HybridRenderer::buildHZB(RenderContext* pContext)
     mpHZBPass->execute(pContext, pCamera, pDepthTexture, mpHZBTexture);
 }
 
-void HybridRenderer::screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo)
+void HybridRenderer::indirectDiffuse(RenderContext* pRenderContext, Fbo::SharedPtr pTargetFbo)
 {
-    if (mEnableSSR)
+    if (mRenderPath == RenderPath::Deferred && mEnableIndirectDiffuse)
     {
-        PROFILE("SSR");
-        GPU_EVENT(pContext, "SSR");
-        Texture::SharedPtr pColorIn = mpResolveFbo->getColorTexture(0);
-        const Camera* pCamera = mpSceneRenderer->getScene()->getActiveCamera().get();
-        mpSSRPass->execute(pContext, pCamera, pColorIn, mpHZBTexture, mpGBufferFbo, mpTempFP16Fbo);
+        PROFILE("indirectDiffuse");
+        GPU_EVENT(pRenderContext, "indirectDiffuse");
 
-        Texture::SharedPtr pSSRTex = mpTempFP16Fbo->getColorTexture(0);
-        if (mEnableSSRDenoiser)
+        Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
+        mpIndirectDiffuseRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpTempFP16Fbo);
+
+        Texture::SharedPtr rtOutput = mpTempFP16Fbo->getColorTexture(0);
+        if (mEnableIndirectDiffuseDenoiser)
+        {
+            PROFILE("SVGF");
+            GPU_EVENT(pRenderContext, "SVGF");
+
+            rtOutput = mpIndirectDiffuseDenoiser->Execute(pRenderContext,
+                rtOutput,
+                mpGBufferFbo->getColorTexture(GBufferRT::SVGF_MotionVec),
+                mpGBufferFbo->getColorTexture(GBufferRT::SVGF_LinearZ),
+                mpGBufferFbo->getColorTexture(GBufferRT::SVGF_CompactNormDepth));
+        }
+
+        mpIndirectDiffuse->execute(pRenderContext, pCamera, rtOutput, mpGBufferFbo, mpTempFP16Fbo);
+
+        if (mDebugDisplayIndirectDiffuse)
+        {
+            mpBlitPass->execute(pRenderContext, mpTempFP16Fbo->getColorTexture(0), pTargetFbo->getColorTexture(0));
+        }
+        else
+        {
+            mpAdditiveBlitPass->execute(pRenderContext, mpTempFP16Fbo->getColorTexture(0), pTargetFbo->getColorTexture(0));
+        }
+    }
+}
+
+void HybridRenderer::indirectSpecular(RenderContext* pRenderContext, Fbo::SharedPtr pTargetFbo)
+{
+    if (mRenderPath == RenderPath::Deferred && mIndirectSpecularMethod != IndirectSpecularMethod::None)
+    {
+        PROFILE("indirectSpecular");
+        GPU_EVENT(pRenderContext, "indirectSpecular");
+
+        Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
+
+        if (mIndirectSpecularMethod == IndirectSpecularMethod::LightFieldProbeRayTracing)
+        {
+            PROFILE("LFRT");
+            GPU_EVENT(pRenderContext, "LFRT");
+            mpIndirectSpecularRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpTempFP16Fbo);
+        }
+        else if (mIndirectSpecularMethod == IndirectSpecularMethod::ScreenSpaceReflection)
+        {
+            buildHZB(pRenderContext);
+
+            PROFILE("SSR");
+            GPU_EVENT(pRenderContext, "SSR");
+            Texture::SharedPtr pColorIn = pTargetFbo->getColorTexture(0);
+            mpSSRPass->execute(pRenderContext, pCamera.get(), pColorIn, mpHZBTexture, mpGBufferFbo, mpTempFP16Fbo);
+        }
+
+        Texture::SharedPtr outTex = mpTempFP16Fbo->getColorTexture(0);
+        if (mEnableIndirectSpecularDenoiser)
         {
             Texture::SharedPtr motionVec = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_MotionVec);
             Texture::SharedPtr linearZ = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_LinearZ);
             Texture::SharedPtr normalDepth = mpGBufferFbo->getColorTexture(GBufferRT::SVGF_CompactNormDepth);
-            pSSRTex = mpSSRDenoiser->Execute(pContext, pSSRTex, motionVec, linearZ, normalDepth);
+            outTex = mpIndirectSpecularDenoiser->Execute(pRenderContext, outTex, motionVec, linearZ, normalDepth);
         }
 
-        if (mDebugDisplaySSR)
+        mpIndirectSpecular->execute(pRenderContext, pCamera, outTex, mpGBufferFbo, mpTempFP16Fbo);
+
+        if (mDebugDisplayIndirectSpecular)
         {
-            mpBlitPass->execute(pContext, pSSRTex, pColorIn);
+            mpBlitPass->execute(pRenderContext, mpTempFP16Fbo->getColorTexture(0), pTargetFbo->getColorTexture(0));
         }
         else
         {
-            mpAdditiveBlitPass->execute(pContext, pSSRTex, pColorIn);
+            mpAdditiveBlitPass->execute(pRenderContext, mpTempFP16Fbo->getColorTexture(0), pTargetFbo->getColorTexture(0));
         }
     }
 }
@@ -420,11 +486,6 @@ void HybridRenderer::postProcess(RenderContext* pContext, Fbo::SharedPtr pTarget
     GPU_EVENT(pContext, "postProcess");
 
     Fbo::SharedPtr pPostProcessDst = mEnableSSAO ? mpPostProcessFbo : pTargetFbo;
-    buildHZB(pContext);
-    if (mRenderPath == RenderPath::Deferred)
-    {
-        screenSpaceReflection(pContext, pPostProcessDst);
-    }
     toneMapping(pContext, pPostProcessDst);
     runTAA(pContext, pPostProcessDst); // This will only run if we are in TAA mode
     ambientOcclusion(pContext, pTargetFbo);
@@ -473,32 +534,8 @@ void HybridRenderer::onFrameRender(SampleCallbacks* pSample, RenderContext* pRen
             forwardLightingPass(pRenderContext, mpMainFbo);
         }
         renderSkyBox(pRenderContext, mpMainFbo);
-
-        if (mEnableLightFieldProbeRayTracing)
-        {
-            PROFILE("lightFieldProbeRayTracing");
-            GPU_EVENT(pRenderContext, "lightFieldProbeRayTracing");
-            Camera::SharedPtr pCamera = mpSceneRenderer->getScene()->getActiveCamera();
-            mpLightProbeRayTracer->execute(pRenderContext, pCamera, mpLightProbeVolume, mpGBufferFbo, mpTempFP16Fbo);
-            Texture::SharedPtr rtOutput = mpTempFP16Fbo->getColorTexture(0);
-            if (mEnableLightFieldProbeDenoise)
-            {
-                rtOutput = mpLightFieldRTDenoiser->Execute(pRenderContext,
-                    rtOutput,
-                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_MotionVec),
-                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_LinearZ),
-                    mpGBufferFbo->getColorTexture(GBufferRT::SVGF_CompactNormDepth));
-            }
-
-            if (mDebugDisplayLightFieldRT)
-            {
-                mpBlitPass->execute(pRenderContext, rtOutput, mpMainFbo->getColorTexture(0));
-            }
-            else
-            {
-                mpAdditiveBlitPass->execute(pRenderContext, rtOutput, mpMainFbo->getColorTexture(0));
-            }
-        }
+        indirectDiffuse(pRenderContext, mpMainFbo);
+        indirectSpecular(pRenderContext, mpMainFbo);
 
         {
             PROFILE("lightFieldProbeViewer");
@@ -582,8 +619,8 @@ void HybridRenderer::onResizeSwapChain(SampleCallbacks* pSample, uint32_t width,
     FP16FboDesc.setColorTarget(0, ResourceFormat::RGBA16Float);
     mpTempFP16Fbo = FboHelper::create2D(width, height, FP16FboDesc);
 
-    mpLightFieldRTDenoiser = SVGFPass::create(width, height);
-    mpSSRDenoiser = SVGFPass::create(width, height);
+    mpIndirectDiffuseDenoiser = SVGFPass::create(width, height);
+    mpIndirectSpecularDenoiser = SVGFPass::create(width, height);
 
     mpHZBTexture = HierarchicalZBuffer::createHZBTexture(width, height);
 
@@ -834,28 +871,45 @@ void HybridRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             pGui->endGroup();
         }
 
-        if (pGui->beginGroup("Light Field Probe"))
+        mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
+
+        if (pGui->beginGroup("Indirect Diffuse"))
         {
-            pGui->addCheckBox("Enable Light Field Probe Ray Tracing", mEnableLightFieldProbeRayTracing);
-            pGui->addCheckBox("Enable Denoiser", mEnableLightFieldProbeDenoise);
-            pGui->addCheckBox("Display Light Field Ray Tracing Result (DEBUG)", mDebugDisplayLightFieldRT);
-            mpLightProbeVolume->renderUI(pGui, "Light Field Probe Volume");
-            mpLightFieldRTDenoiser->RenderGui(pGui, "SVGF");
+            pGui->addCheckBox("Enable Light Field Probe Ray Traced Indirect Diffuse", mEnableIndirectDiffuse);
+            pGui->addCheckBox("Enable Indirect Diffuse Denoiser", mEnableIndirectDiffuseDenoiser);
+            pGui->addCheckBox("Display Indirect Diffuse Result (DEBUG)", mDebugDisplayIndirectDiffuse);
+            mpIndirectDiffuseDenoiser->RenderGui(pGui, "SVGF");
+
+            pGui->endGroup();
+        }
+
+        if (pGui->beginGroup("Indirect Specular"))
+        {
+            pGui->addDropdown("Indirect Specular Method", indirectSpecularMethodList, (uint32_t&)mIndirectSpecularMethod);
+
+            if (mIndirectSpecularMethod != IndirectSpecularMethod::None)
+            {
+                pGui->addCheckBox("Enable Indirect Specular Denoiser", mEnableIndirectSpecularDenoiser);
+                pGui->addCheckBox("Display Indirect Specular Result (DEBUG)", mDebugDisplayIndirectSpecular);
+            }
+
+            if (mIndirectSpecularMethod == IndirectSpecularMethod::LightFieldProbeRayTracing)
+            {
+            }
+            else if (mIndirectSpecularMethod == IndirectSpecularMethod::ScreenSpaceReflection)
+            {
+                mpSSRPass->renderUI(pGui, "SSR");
+            }
+
+            if (mEnableIndirectSpecularDenoiser)
+            {
+                mpIndirectSpecularDenoiser->RenderGui(pGui, "SVGF");
+            }
+
             pGui->endGroup();
         }
 
         mpToneMapper->renderUI(pGui, "Tone-Mapping");
-
-        if (pGui->beginGroup("SSR"))
-        {
-            pGui->addCheckBox("Enable SSR", mEnableSSR);
-            pGui->addCheckBox("Enable Denoiser", mEnableSSRDenoiser);
-            pGui->addCheckBox("Display SSR Result (DEBUG)", mDebugDisplaySSR);
-            mpSSRPass->renderUI(pGui, "SSR Settings");
-            mpSSRDenoiser->RenderGui(pGui, "SVGF");
-
-            pGui->endGroup();
-        }
 
         if (pGui->beginGroup("Shadows"))
         {

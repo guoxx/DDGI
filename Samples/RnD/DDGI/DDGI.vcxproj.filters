@@ -9,6 +9,8 @@
     <ClCompile Include="LightFieldProbeVolume.cpp" />
     <ClCompile Include="LightFieldProbeShading.cpp" />
     <ClCompile Include="SVGFPass.cpp" />
+    <ClCompile Include="LightFieldProbeFiltering.cpp" />
+    <ClCompile Include="IndirectLighting.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Data">
@@ -26,6 +28,8 @@
     <ClInclude Include="Data\SVGFUtils.slang">
       <Filter>Data</Filter>
     </ClInclude>
+    <ClInclude Include="LightFieldProbeFiltering.h" />
+    <ClInclude Include="IndirectLighting.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\OctahedralMapping.slang">
@@ -53,6 +57,12 @@
       <Filter>Data</Filter>
     </None>
     <None Include="Data\SVGF_VarianceEstimation.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\LightFieldProbeFiltering.slang">
+      <Filter>Data</Filter>
+    </None>
+    <None Include="Data\IndirectLighting.slang">
       <Filter>Data</Filter>
     </None>
   </ItemGroup>

@@ -29,6 +29,7 @@
 #include "Falcor.h"
 #include "Experimental/RenderPasses/GBufferRaster.h"
 #include "LightFieldProbeShading.h"
+#include "LightFieldProbeFiltering.h"
 #include "OctahedralMapping.h"
 #include "DownscalePass.h"
 
@@ -64,6 +65,8 @@ namespace Falcor
         Texture::SharedPtr getNormalTexture() const { return mpNormalFbo->getColorTexture(0); }
         Texture::SharedPtr getDistanceTexture() const { return mpDistanceFbo->getColorTexture(0); }
         Texture::SharedPtr getLowResDistanceTexture() const { return mpLowResDistanceFbo->getColorTexture(0); }
+        Texture::SharedPtr getIrradianceTexture() const { return mpFilteredFbo->getColorTexture(0); }
+        Texture::SharedPtr getDistanceMomentsTexture() const { return mpFilteredFbo->getColorTexture(1); }
 
         void debugDraw(RenderContext* pContext, Camera::SharedConstPtr pCamera, Fbo::SharedPtr pTargetFbo);
 
@@ -81,8 +84,17 @@ namespace Falcor
         void loadDebugResources();
         void unloadDebugResources();
 
+        enum LightFieldDebugDisplay
+        {
+            Radiance,
+            Irradiance,
+            ProbeColor,
+        };
+        static const Gui::DropdownList sLightFieldDebugDisplayModeList;
+
         struct
         {
+            LightFieldDebugDisplay debugDisplayMode = Radiance;
             Scene::SharedPtr pScene;
             SceneRenderer::SharedPtr pRenderer;
 
@@ -105,21 +117,24 @@ namespace Falcor
             CubemapResolution = 1024,
             OctahedralResolution = 1024,
             OctahedralResolutionLowRes = 1024/32,
+            FilteredFboResolution = 128,
             NumProbesUpdatePerFrame = 1,
         };
 
         Fbo::SharedPtr mpTempGBufferFbo;
-        Fbo::SharedPtr mpTempLightFieldFbos[6];
+        Fbo::SharedPtr mpTempLightFieldFbo;
 
         Fbo::SharedPtr mpRadianceFbo;
         Fbo::SharedPtr mpNormalFbo;
         Fbo::SharedPtr mpDistanceFbo;
         Fbo::SharedPtr mpLowResDistanceFbo;
+        Fbo::SharedPtr mpFilteredFbo;
 
         CascadedShadowMaps::SharedPtr mpShadowPass;
         GBufferRaster::SharedPtr mpRaster;
         LightFieldProbeShading::SharedPtr mpShading;
         OctahedralMapping::SharedPtr mpOctMapping;
+        LightFieldProbeFiltering::SharedPtr mpFiltering;
         DownscalePass::SharedPtr mpDownscalePass;
 
         struct LightFieldProbe

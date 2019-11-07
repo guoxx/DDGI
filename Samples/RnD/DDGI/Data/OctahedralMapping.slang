@@ -2,13 +2,7 @@
 
 __import Helpers;
 
-Texture2D gFacePosX;
-Texture2D gFaceNegX;
-Texture2D gFacePosY;
-Texture2D gFaceNegY;
-Texture2D gFacePosZ;
-Texture2D gFaceNegZ;
-
+TextureCube gCubemap;
 SamplerState gLinearSampler;
 
 float3 sphericalMapping(float2 uv)
@@ -25,48 +19,9 @@ float3 sphericalMapping(float2 uv)
 
 float4 sampleCubemap(float3 dir)
 {
-    float3 absDir = abs(dir);
-    float maxVal = max(max(absDir.x, absDir.y), absDir.z);
-    if (maxVal == absDir.x)
-    {
-        if (dir.x > 0)
-        {
-            float2 uv = NdcToUv(dir.zy/maxVal);
-            return gFacePosX.SampleLevel(gLinearSampler, uv, 0);
-        }
-        else
-        {
-            float2 uv = NdcToUv(float2(-dir.z, dir.y)/maxVal);
-            return gFaceNegX.SampleLevel(gLinearSampler, uv, 0);
-        }
-    }
-    else if (maxVal == absDir.y)
-    {
-        if (dir.y > 0)
-        {
-            float2 uv = NdcToUv(float2(dir.x, dir.z)/maxVal);
-            return gFacePosY.SampleLevel(gLinearSampler, uv, 0);
-        }
-        else
-        {
-            float2 uv = NdcToUv(float2(dir.x, -dir.z)/maxVal);
-            return gFaceNegY.SampleLevel(gLinearSampler, uv, 0);
-        }
-    }
-    else
-    {
-        if (dir.z > 0)
-        {
-            float2 uv = NdcToUv(float2(-dir.x, dir.y)/maxVal);
-            return gFacePosZ.SampleLevel(gLinearSampler, uv, 0);
-        }
-        else
-        {
-            float2 uv = NdcToUv(float2(dir.x, dir.y)/maxVal);
-            return gFaceNegZ.SampleLevel(gLinearSampler, uv, 0);
-        }
-    }
-    return 0;
+    // We are using right hand coordinate
+    dir.z = -dir.z;
+    return gCubemap.SampleLevel(gLinearSampler, dir, 0);
 }
 
 struct VsOut

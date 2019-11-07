@@ -1,26 +1,30 @@
-#include "LightFieldProbeRayTracing.h"
+#include "IndirectLighting.h"
 #include "Experimental/RenderPasses/GBuffer.h"
 
 using namespace Falcor;
 
-LightFieldProbeRayTracing::SharedPtr LightFieldProbeRayTracing::create(Type type)
+IndirectLighting::SharedPtr IndirectLighting::create(Type type)
 {
-    auto ptr = new LightFieldProbeRayTracing(type);
+    auto ptr = new IndirectLighting(type);
     return SharedPtr(ptr);
 }
 
-LightFieldProbeRayTracing::LightFieldProbeRayTracing(Type type) : RenderPass("LightFieldProbeRayTracing")
+IndirectLighting::IndirectLighting(Type type) : RenderPass("IndirectLighting")
 {
     GraphicsProgram::Desc d;
     d.setOptimizationLevel(Shader::OptimizationLevel::Maximal);
     //d.setCompilerFlags(Shader::CompilerFlags::EmitDebugInfo);
     //d.setCompilerFlags(Shader::CompilerFlags::HLSLShader);
-    d.addShaderLibrary("LightFieldProbeRayTracing.slang").vsEntry("VSMain").psEntry("PSMain");
+    d.addShaderLibrary("IndirectLighting.slang").vsEntry("VSMain").psEntry("PSMain");
     Program::DefineList definesList;
-    if (type == LightFieldProbeRayTracing::Diffuse)
+    if (type == IndirectLighting::Diffuse)
+    {
         definesList.add("_DIFFUSE", "1");
-    else if (type == LightFieldProbeRayTracing::Specular)
+    }
+    else if (type == IndirectLighting::Specular)
+    {
         definesList.add("_SPECULAR", "1");
+    }
     mpProgram = GraphicsProgram::create(d, definesList);
 
     ProgramReflection::SharedConstPtr pReflector = mpProgram->getReflector();
@@ -28,7 +32,7 @@ LightFieldProbeRayTracing::LightFieldProbeRayTracing(Type type) : RenderPass("Li
 
     Sampler::Desc samplerDesc;
     samplerDesc.setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point);
-    samplerDesc.setAddressingMode(Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp);
+    samplerDesc.setAddressingMode(Sampler::AddressMode::Wrap, Sampler::AddressMode::Wrap, Sampler::AddressMode::Wrap);
     Sampler::SharedPtr pPointSampler = Sampler::create(samplerDesc);
     mpVars->setSampler("gPointSampler", pPointSampler);
     samplerDesc.setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear);
@@ -50,14 +54,9 @@ LightFieldProbeRayTracing::LightFieldProbeRayTracing(Type type) : RenderPass("Li
     mpState->setProgram(mpProgram);
 }
 
-void LightFieldProbeRayTracing::setVarsData(Camera::SharedPtr& pCamera, LightFieldProbeVolume::SharedPtr& pProbe, Fbo::SharedPtr& pSceneGBufferFbo)
+void IndirectLighting::setVarsData(Camera::SharedPtr& pCamera, Texture::SharedPtr& pLightingTex, Fbo::SharedPtr& pSceneGBufferFbo)
 {
-    mpVars->setTexture("gOctRadianceTex", pProbe->getRadianceTexture());
-    mpVars->setTexture("gOctNormalTex", pProbe->getNormalTexture());
-    mpVars->setTexture("gOctDistanceTex", pProbe->getDistanceTexture());
-    mpVars->setTexture("gOctLowResDistanceTex", pProbe->getLowResDistanceTexture());
-    mpVars->setTexture("gIrradianceTex", pProbe->getIrradianceTexture());
-    mpVars->setTexture("gDistanceMomentsTex", pProbe->getDistanceMomentsTexture());
+    mpVars->setTexture("gLightingTex", pLightingTex);
     mpVars->setTexture("gNormalTex", pSceneGBufferFbo->getColorTexture(GBufferRT::NORMAL_BITANGENT));
     mpVars->setTexture("gDiffuseOpacity", pSceneGBufferFbo->getColorTexture(GBufferRT::DIFFUSE_OPACITY));
     mpVars->setTexture("gSpecRoughTex", pSceneGBufferFbo->getColorTexture(GBufferRT::SPECULAR_ROUGHNESS));
@@ -65,28 +64,21 @@ void LightFieldProbeRayTracing::setVarsData(Camera::SharedPtr& pCamera, LightFie
 
     ParameterBlock* pDefaultBlock = mpVars->getDefaultBlock().get();
     // Update value of constants
-    mConstantData.gViewProjMat = pCamera->getViewProjMatrix();
     mConstantData.gInvViewProjMat = pCamera->getInvViewProjMatrix();
     mConstantData.gCameraPos = float4(pCamera->getPosition(), 1);
-    mConstantData.gProbeStep = pProbe->getProbeStep();
-    mConstantData.gFrameCount += 1.0;
-    mConstantData.gProbesCount = pProbe->getProbesCount();
-    mConstantData.gProbeStartPosition = pProbe->getProbeStartPosition();
-    mConstantData.gSizeHighRes = float2(pProbe->getDistanceTexture()->getWidth(), pProbe->getDistanceTexture()->getHeight());
-    mConstantData.gSizeLowRes = float2(pProbe->getLowResDistanceTexture()->getWidth(), pProbe->getLowResDistanceTexture()->getHeight());
     // Update to GPU
     ConstantBuffer* pCB = pDefaultBlock->getConstantBuffer("PerFrameCB").get();
     assert(sizeof(mConstantData) <= pCB->getSize());
     pCB->setBlob(&mConstantData, 0, sizeof(mConstantData));
 }
 
-void LightFieldProbeRayTracing::execute(RenderContext* pContext,
+void IndirectLighting::execute(RenderContext* pContext,
     Camera::SharedPtr& pCamera,
-    LightFieldProbeVolume::SharedPtr& pProbe,
+    Texture::SharedPtr& pLightingTex,
     Fbo::SharedPtr& pSceneGBufferFbo,
     Fbo::SharedPtr& pTargetFbo)
 {
-    setVarsData(pCamera, pProbe, pSceneGBufferFbo);
+    setVarsData(pCamera, pLightingTex, pSceneGBufferFbo);
 
     mpState->pushFbo(pTargetFbo);
 
@@ -102,14 +94,14 @@ void LightFieldProbeRayTracing::execute(RenderContext* pContext,
 }
 
 // TODO: implementation
-RenderPassReflection LightFieldProbeRayTracing::reflect() const
+RenderPassReflection IndirectLighting::reflect() const
 {
     should_not_get_here();
     RenderPassReflection reflector;
     return reflector;
 }
 
-void LightFieldProbeRayTracing::execute(RenderContext* pContext, const RenderData* pRenderData)
+void IndirectLighting::execute(RenderContext* pContext, const RenderData* pRenderData)
 {
     should_not_get_here();
 }

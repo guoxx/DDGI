@@ -25,20 +25,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
-#include "OctahedralMapping.h"
+#include "LightFieldProbeFiltering.h"
 
 namespace
 {
-    const char kShaderFilename[] = "OctahedralMapping.slang";
+    const char kShaderFilename[] = "LightFieldProbeFiltering.slang";
 }
 
-OctahedralMapping::SharedPtr OctahedralMapping::create(const Dictionary& dict)
+LightFieldProbeFiltering::SharedPtr LightFieldProbeFiltering::create(const Dictionary& dict)
 {
-    SharedPtr pPass = SharedPtr(new OctahedralMapping);
+    SharedPtr pPass = SharedPtr(new LightFieldProbeFiltering);
     return pPass;
 }
 
-OctahedralMapping::OctahedralMapping() : RenderPass("OctahedralMapping")
+LightFieldProbeFiltering::LightFieldProbeFiltering() : RenderPass("LightFieldProbeFiltering")
 {
     GraphicsProgram::Desc d;
     d.setCompilerFlags(Shader::CompilerFlags::EmitDebugInfo);
@@ -53,6 +53,9 @@ OctahedralMapping::OctahedralMapping() : RenderPass("OctahedralMapping")
     samplerDesc.setAddressingMode(Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp, Sampler::AddressMode::Clamp);
     Sampler::SharedPtr pLinearSampler = Sampler::create(samplerDesc);
     mpVars->setSampler("gLinearSampler", pLinearSampler);
+    samplerDesc.setFilterMode(Sampler::Filter::Point, Sampler::Filter::Point, Sampler::Filter::Point);
+    Sampler::SharedPtr pPointSampler = Sampler::create(samplerDesc);
+    mpVars->setSampler("gPointSampler", pPointSampler);
 
     // Initialize graphics state
     DepthStencilState::Desc dsDesc;
@@ -69,11 +72,19 @@ OctahedralMapping::OctahedralMapping() : RenderPass("OctahedralMapping")
     mpState->setProgram(mpProgram);
 }
 
-void OctahedralMapping::execute(RenderContext* pContext,
-                                const Texture::SharedPtr& pCubemap,
-                                const Fbo::SharedPtr& pTargetFbo)
+void LightFieldProbeFiltering::execute(RenderContext* pContext,
+                                       const Texture::SharedPtr& pRadianceTex,
+                                       const Texture::SharedPtr pDistanceTex,
+                                       int arrayIndex,
+                                       const Fbo::SharedPtr& pTargetFbo)
 {
-    mpVars->setTexture("gCubemap", pCubemap);
+    mpVars->setTexture("gRadianceTex", pRadianceTex);
+    mpVars->setTexture("gDistanceTex", pDistanceTex);
+    mFrameCount++;
+    mpVars["PerPassCB"]["gFrameCount"] = mFrameCount;
+    mpVars["PerPassCB"]["gSampleCount"] = mSampleCount;
+    mpVars["PerPassCB"]["gArrayIndex"] = arrayIndex;
+    mpVars["PerPassCB"]["gDepthSharpness"] = mDepthSharpness;
 
     mpState->pushFbo(pTargetFbo);
 
@@ -85,17 +96,17 @@ void OctahedralMapping::execute(RenderContext* pContext,
     pContext->popGraphicsVars();
     pContext->popGraphicsState();
 
-    mpState->popFbo();
+    mpState->popFbo();    
 }
 
-RenderPassReflection OctahedralMapping::reflect() const
+RenderPassReflection LightFieldProbeFiltering::reflect() const
 {
     should_not_get_here();
     RenderPassReflection r;
     return r;
 }
 
-void OctahedralMapping::execute(RenderContext* pContext, const RenderData* pRenderData)
+void LightFieldProbeFiltering::execute(RenderContext* pContext, const RenderData* pRenderData)
 {
     should_not_get_here();
 }

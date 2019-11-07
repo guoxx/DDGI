@@ -125,6 +125,11 @@ namespace Falcor
         {
             resArraySize = pTexture->getArraySize();
             resMipCount = pTexture->getMipCount();
+
+            if (pResource->getType() == Resource::Type::TextureCube)
+            {
+                resArraySize *= 6;
+            }
         }
         else
         {

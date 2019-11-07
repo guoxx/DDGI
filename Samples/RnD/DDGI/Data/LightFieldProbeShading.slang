@@ -72,7 +72,7 @@ PsOut PSMain(VsOut pIn)
     float3 emissive = data.emissive;
 
     // Does this g-buffer pixel contain a valid piece of geometry?  (0 in pos.w for invalid)
-    bool isGeometryValid = (posW.w != 0.0f);
+    bool isGeometryValid = (data.depth != 1.0f);
     if (!isGeometryValid) {
         PsOut pOut;
         pOut.radiance = 0;

@@ -35,6 +35,7 @@
 #include "Experimental/RenderPasses/ForwardLightingPass.h"
 #include "LightFieldProbeVolume.h"
 #include "LightFieldProbeRayTracing.h"
+#include "IndirectLighting.h"
 #include "SVGFPass.h"
 
 using namespace Falcor;
@@ -65,17 +66,21 @@ private:
     DepthPass::SharedPtr mpDepthPass;
     GBufferRaster::SharedPtr mpGBufferRaster;
     GBufferLightingPass::SharedPtr mpGBufferLightingPass;
-    HierarchicalZBuffer::SharedPtr mpHZBPass;
-    ScreenSpaceReflection::SharedPtr mpSSRPass;
     ToneMapping::SharedPtr mpToneMapper;
     SSAO::SharedPtr mpSSAO;
     FXAA::SharedPtr mpFXAA;
 
-    SVGFPass::SharedPtr mpLightFieldRTDenoiser;
-    SVGFPass::SharedPtr mpSSRDenoiser;
-
     LightFieldProbeVolume::SharedPtr mpLightProbeVolume;
-    LightFieldProbeRayTracing::SharedPtr mpLightProbeRayTracer;
+
+    LightFieldProbeRayTracing::SharedPtr mpIndirectDiffuseRayTracer;
+    SVGFPass::SharedPtr mpIndirectDiffuseDenoiser;
+    IndirectLighting::SharedPtr mpIndirectDiffuse;
+
+    HierarchicalZBuffer::SharedPtr mpHZBPass;
+    ScreenSpaceReflection::SharedPtr mpSSRPass;
+    LightFieldProbeRayTracing::SharedPtr mpIndirectSpecularRayTracer;
+    SVGFPass::SharedPtr mpIndirectSpecularDenoiser;
+    IndirectLighting::SharedPtr mpIndirectSpecular;
 
     BlitPass::SharedPtr mpBlitPass;
     BlitPass::SharedPtr mpAdditiveBlitPass;
@@ -121,7 +126,8 @@ private:
     void toneMapping(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void ambientOcclusion(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void buildHZB(RenderContext* pContext);
-    void screenSpaceReflection(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void indirectDiffuse(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
+    void indirectSpecular(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
     void postProcess(RenderContext* pContext, Fbo::SharedPtr pTargetFbo);
 
     void initSkyBox(const std::string& name);
@@ -161,6 +167,13 @@ private:
         Forward
     };
 
+    enum class IndirectSpecularMethod
+    {
+        None,
+        ScreenSpaceReflection,
+        LightFieldProbeRayTracing,
+    };
+
     float mOpacityScale = 0.5f;
     AAMode mAAMode = AAMode::None;
     SamplePattern mTAASamplePattern = SamplePattern::Halton;
@@ -173,13 +186,14 @@ private:
     bool mUseCsSkinning = false;
     bool mVisualizeCascades = false;
     bool mEnableSSAO = false;
-    bool mEnableSSR = false;
-    bool mEnableSSRDenoiser = false;
-    bool mEnableLightFieldProbeRayTracing = false;
-    bool mEnableLightFieldProbeDenoise = false;
 
-    bool mDebugDisplayLightFieldRT = false;
-    bool mDebugDisplaySSR = false;
+    bool mEnableIndirectDiffuse = false;
+    bool mEnableIndirectDiffuseDenoiser = false;
+    bool mDebugDisplayIndirectDiffuse = false;
+
+    IndirectSpecularMethod mIndirectSpecularMethod;
+    bool mEnableIndirectSpecularDenoiser = false;
+    bool mDebugDisplayIndirectSpecular = false;
 
     // TODO
     bool mEnableTransparent = false;

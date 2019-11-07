@@ -11,8 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="IndirectLighting.cpp" />
     <ClCompile Include="DDGI.cpp" />
     <ClCompile Include="DownscalePass.cpp" />
+    <ClCompile Include="LightFieldProbeFiltering.cpp" />
     <ClCompile Include="LightFieldProbeShading.cpp" />
     <ClCompile Include="HybridRenderer.cpp" />
     <ClCompile Include="LightFieldProbeVolume.cpp" />
@@ -26,8 +28,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="IndirectLighting.h" />
     <ClInclude Include="Data\SVGFUtils.slang" />
     <ClInclude Include="DownscalePass.h" />
+    <ClInclude Include="LightFieldProbeFiltering.h" />
     <ClInclude Include="LightFieldProbeShading.h" />
     <ClInclude Include="HybridRenderer.h" />
     <ClInclude Include="LightFieldProbeVolume.h" />
@@ -37,6 +41,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\DownscalePass.slang" />
+    <None Include="Data\IndirectLighting.slang" />
+    <None Include="Data\LightFieldProbeFiltering.slang" />
     <None Include="Data\LightFieldProbeShading.slang" />
     <None Include="Data\LightFieldProbe.slang" />
     <None Include="Data\LightFieldProbeRayTracing.slang" />

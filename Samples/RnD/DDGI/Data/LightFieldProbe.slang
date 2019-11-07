@@ -23,6 +23,8 @@ static const float minProgressDistance = 0.01;
 // probe xyz indices
 #define GridCoord ivec3
 
+static const ProbeIndex debugProbeIndex = -1;
+
 // ----
 #define Point2 float2
 #define Point3 float3
@@ -100,8 +102,8 @@ struct LightFieldSurface {
     float2                  invSizeLowRes;
 
     //int                     lowResolutionDownsampleFactor;
-    //TextureCubeArray        irradianceProbeGrid;
-    //TextureCubeArray        meanDistProbeGrid;
+    Texture2DArray          irradianceProbeGrid;
+    Texture2DArray          meanDistProbeGrid;
 };
 
 
@@ -117,6 +119,10 @@ ProbeIndex gridCoordToProbeIndex(in LightFieldSurface L, in Point3 probeCoords) 
     return int(probeCoords.x + probeCoords.y * L.probeCounts.x + probeCoords.z * L.probeCounts.x * L.probeCounts.y);
 }
 
+ProbeIndex gridCoordToProbeIndex(in int3 probeCounts, in Point3 probeCoords) {
+    return int(probeCoords.x + probeCoords.y * probeCounts.x + probeCoords.z * probeCounts.x * probeCounts.y);
+}
+
 GridCoord baseGridCoord(in LightFieldSurface L, Point3 X) {
     return clamp(GridCoord((X - L.probeStartPosition) / L.probeStep),
                 GridCoord(0, 0, 0), 
@@ -128,6 +134,16 @@ ProbeIndex baseProbeIndex(in LightFieldSurface L, Point3 X) {
     return gridCoordToProbeIndex(L, baseGridCoord(L, X));
 }
 
+GridCoord probeIndexToGridCoord(in int3 probeCounts, ProbeIndex index) {
+    // Assumes probeCounts are powers of two.
+    // Precomputing the MSB actually slows this code down substantially
+    ivec3 iPos;
+    iPos.x = index & (probeCounts.x - 1);
+    iPos.y = (index & ((probeCounts.x * probeCounts.y) - 1)) >> findMSB(probeCounts.x);
+    iPos.z = index >> findMSB(probeCounts.x * probeCounts.y);
+
+    return iPos;
+}
 
 GridCoord probeIndexToGridCoord(in LightFieldSurface L, ProbeIndex index) {
     // Assumes probeCounts are powers of two.
@@ -140,10 +156,28 @@ GridCoord probeIndexToGridCoord(in LightFieldSurface L, ProbeIndex index) {
     return iPos;
 }
 
+// Visualize the probes with garrish colors
+vec3 probeCoordVisualizationColor(in Point3 probeCounts, GridCoord coord) {
+    //return float3(float(coord.x)/probeCounts.x, 0, 0);
+    //return float3(coord)/probeCounts;
 
-//Color3 probeIndexToColor(in LightFieldSurface L, ProbeIndex index) {
-//    return gridCoordToColor(probeIndexToGridCoord(L, index));
-//}
+    ProbeIndex p = gridCoordToProbeIndex(probeCounts, vec3(coord));
+
+    // Show contribution from a single probe for debugging
+    if ((debugProbeIndex != -1) && (p != debugProbeIndex)) { 
+        return vec3(0, 0, 0);
+    }
+
+    vec3 c = vec3(coord.x & 1, coord.y & 1, coord.z & 1);
+
+    // Make all probes the same brightness
+    c /= max(c.x + c.y + c.z, 0.01);
+    return c;
+}
+
+Color3 probeIndexToColor(in int3 probeCounts, ProbeIndex index) {
+    return probeCoordVisualizationColor(probeCounts, probeIndexToGridCoord(probeCounts, index));
+}
 
 
 /** probeCoords Coordinates of the probe, computed as part of the process. */
@@ -731,9 +765,8 @@ bool trace(LightFieldSurface lightFieldSurface, Ray worldSpaceRay, inout float t
     return (hitProbeIndex != -1);
 }
 
-/*
 // Engine-specific arguments and helper functions have been removed from the following code 
-Irradiance3 computePrefilteredIrradiance(Point3 wsPosition) {
+Irradiance3 computePrefilteredIrradiance(LightFieldSurface lightFieldSurface, Point3 wsPosition, Vector3 wsN) {
     GridCoord baseGridCoord_ = baseGridCoord(lightFieldSurface, wsPosition);
     Point3 baseProbePos = gridCoordToPosition(lightFieldSurface, baseGridCoord_);
     Irradiance3 sumIrradiance = Irradiance3(0);
@@ -748,30 +781,33 @@ Irradiance3 computePrefilteredIrradiance(Point3 wsPosition) {
         GridCoord  probeGridCoord = clamp(baseGridCoord_ + offset, GridCoord(0), GridCoord(lightFieldSurface.probeCounts - 1));
         ProbeIndex p = gridCoordToProbeIndex(lightFieldSurface, probeGridCoord);
 
-        // Compute the trilinear weights based on the grid cell vertex to smoothly
-        // transition between probes. Avoid ever going entirely to zero because that
-        // will cause problems at the border probes.
-        Vector3 trilinear = lerp(1 - alpha, alpha, offset);
-        float weight = trilinear.x * trilinear.y * trilinear.z;
-
         // Make cosine falloff in tangent plane with respect to the angle from the surface to the probe so that we never
         // test a probe that is *behind* the surface.
         // It doesn't have to be cosine, but that is efficient to compute and we must clip to the tangent plane.
         Point3 probePos = gridCoordToPosition(lightFieldSurface, probeGridCoord);
         Vector3 probeToPoint = wsPosition - probePos;
         Vector3 dir = normalize(-probeToPoint);
+        float distToProbe = length(probeToPoint);
+
+        // Compute the trilinear weights based on the grid cell vertex to smoothly
+        // transition between probes. Avoid ever going entirely to zero because that
+        // will cause problems at the border probes.
+        Vector3 trilinear = lerp(1 - alpha, alpha, offset);
+        float weight = trilinear.x * trilinear.y * trilinear.z;
 
         // Smooth back-face test
         weight *= max(0.05, dot(dir, wsN));
 
-        float2 temp = texture(lightFieldSurface.meanDistProbeGrid.sampler, vec4(-dir, p)).rg;
+        float2 temp = lightFieldSurface.meanDistProbeGrid.SampleLevel(lightFieldSurface.linearSampler, float3(OctToUv(octEncode(-dir)), p), 0).rg;
         float mean = temp.x;
-        float variance = abs(temp.y - square(mean));
+        float variance = abs(temp.y - mean*mean);
 
-        float distToProbe = length(probeToPoint);
         // http://www.punkuser.net/vsm/vsm_paper.pdf; equation 5
         float t_sub_mean = distToProbe - mean;
-        float chebychev = variance / (variance + square(t_sub_mean));
+        float chebychev = variance / (variance + t_sub_mean*t_sub_mean);
+
+        // Increase contrast in the weight
+        //chebychev = pow(chebychev, 3);
 
         weight *= ((distToProbe <= mean) ? 1.0 : max(chebychev, 0.0));
 
@@ -782,10 +818,10 @@ Irradiance3 computePrefilteredIrradiance(Point3 wsPosition) {
 
         Vector3 irradianceDir = wsN;
 
-        Irradiance3 probeIrradiance = texture(lightFieldSurface.irradianceProbeGrid.sampler, vec4(normalize(irradianceDir), p)).rgb;
+        Irradiance3 probeIrradiance = lightFieldSurface.irradianceProbeGrid.SampleLevel(lightFieldSurface.linearSampler, float3(OctToUv(octEncode(normalize(irradianceDir))), p), 0).rgb;
 
         // Debug probe contribution by visualizing as colors
-        // probeIrradiance = 0.5 * probeIndexToColor(lightFieldSurface, p);
+        //probeIrradiance = probeIndexToColor(lightFieldSurface.probeCounts, p);
 
         sumIrradiance += weight * probeIrradiance;
     }
@@ -794,6 +830,7 @@ Irradiance3 computePrefilteredIrradiance(Point3 wsPosition) {
 }
 
 
+/*
 // Stochastically samples one glossy ray
 Radiance3 computeGlossyRay(Point3 wsPosition, Vector3 wo, Vector3 n) {
     const float rayBumpEpsilon = 0.001;

@@ -4,9 +4,6 @@ __import BRDF;
 __import Helpers;
 __import LightFieldProbe;
 
-#define CALC_DIFFUSE 0
-#define CALC_SPECULAR 1
-
 cbuffer PerFrameCB
 {
     float4x4 gViewProjMat;
@@ -27,6 +24,8 @@ Texture2DArray gOctRadianceTex;
 Texture2DArray gOctNormalTex;
 Texture2DArray gOctDistanceTex;
 Texture2DArray gOctLowResDistanceTex;
+Texture2DArray gIrradianceTex;
+Texture2DArray gDistanceMomentsTex;
 Texture2D gNormalTex;
 Texture2D gDiffuseOpacity;
 Texture2D gSpecRoughTex;
@@ -71,10 +70,11 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     {
 
     float2 rndVal = float2(rand_next(rndSeed), rand_next(rndSeed));
-#if CALC_SPECULAR
+
+#if defined(_SPECULAR)
     float3 Wh = getGGXMicrofacet(rndVal, N, alpha);
     const float3 Wi = reflect(-Wo, Wh);
-#elif CALC_DIFFUSE
+#elif defined(_DIFFUSE)
     const float3 Wi = getCosHemisphereSample(rndVal, N, getPerpendicularStark(N));
 #endif
 
@@ -100,6 +100,9 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     lightFieldSurf.sizeLowRes = gSizeLowRes;
     lightFieldSurf.invSizeHighRes = 1.0/lightFieldSurf.sizeHighRes;
     lightFieldSurf.invSizeLowRes = 1.0/lightFieldSurf.sizeLowRes;
+
+    lightFieldSurf.irradianceProbeGrid = gIrradianceTex;
+    lightFieldSurf.meanDistProbeGrid = gDistanceMomentsTex;
 
     Ray worldSpaceRay = reflectRay;
 
@@ -134,7 +137,7 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     float NdotL = saturate(dot(N, Wi));
     float NdotV = saturate(dot(N, Wo));
 
-#if CALC_SPECULAR
+#if defined(_SPECULAR)
     float NdotH = saturate(dot(N, Wh));
     float LdotH = saturate(dot(Wi, Wh));
 
@@ -149,10 +152,14 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     float3 specularBrdf = G * F;
 
     result += Li * specularBrdf * NdotL / pdf;
-#elif CALC_DIFFUSE
+#elif defined(_DIFFUSE)
+#if 1
     // NdotL cancelled by pdf
-    float3 diffuseBrdf = gDiffuseOpacity.SampleLevel(gPointSampler, pIn.texC, 0).xyz / M_PI;
-    result += Li * diffuseBrdf;
+    result += Li * M_PI;
+#else
+    float3 tmp = computePrefilteredIrradiance(lightFieldSurf, P, N);
+    result += tmp/2/M_PI;
+#endif
 #endif
     //result += Li * NdotL;
     }
