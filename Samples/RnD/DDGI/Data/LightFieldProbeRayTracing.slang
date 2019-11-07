@@ -4,6 +4,9 @@ __import BRDF;
 __import Helpers;
 __import LightFieldProbe;
 
+#define CALC_DIFFUSE 0
+#define CALC_SPECULAR 1
+
 cbuffer PerFrameCB
 {
     float4x4 gViewProjMat;
@@ -25,6 +28,7 @@ Texture2DArray gOctNormalTex;
 Texture2DArray gOctDistanceTex;
 Texture2DArray gOctLowResDistanceTex;
 Texture2D gNormalTex;
+Texture2D gDiffuseOpacity;
 Texture2D gSpecRoughTex;
 Texture2D gDepthTex;
 
@@ -67,8 +71,12 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     {
 
     float2 rndVal = float2(rand_next(rndSeed), rand_next(rndSeed));
+#if CALC_SPECULAR
     float3 Wh = getGGXMicrofacet(rndVal, N, alpha);
     const float3 Wi = reflect(-Wo, Wh);
+#elif CALC_DIFFUSE
+    const float3 Wi = getCosHemisphereSample(rndVal, N, getPerpendicularStark(N));
+#endif
 
     if (dot(Wi, N) <= 0)
     {
@@ -125,6 +133,8 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
 
     float NdotL = saturate(dot(N, Wi));
     float NdotV = saturate(dot(N, Wo));
+
+#if CALC_SPECULAR
     float NdotH = saturate(dot(N, Wh));
     float LdotH = saturate(dot(Wi, Wh));
 
@@ -139,6 +149,11 @@ float4 PSMain(VsOut pIn) : SV_TARGET0
     float3 specularBrdf = G * F;
 
     result += Li * specularBrdf * NdotL / pdf;
+#elif CALC_DIFFUSE
+    // NdotL cancelled by pdf
+    float3 diffuseBrdf = gDiffuseOpacity.SampleLevel(gPointSampler, pIn.texC, 0).xyz / M_PI;
+    result += Li * diffuseBrdf;
+#endif
     //result += Li * NdotL;
     }
 
