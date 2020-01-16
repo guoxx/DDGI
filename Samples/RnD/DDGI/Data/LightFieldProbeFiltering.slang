@@ -80,7 +80,9 @@ PsOut PSMain(VsOut pIn) : SV_TARGET0
             psOut.irradiance.xyz += radiance*cosTheta*sinTheta;
 
             float distWeight = pow(cosTheta, gDepthSharpness);
-            psOut.distMoments.x += gDistanceTex.SampleLevel(gPointSampler, float3(uv, gArrayIndex), 0).x * distWeight;
+            float rayProbeDist = gDistanceTex.SampleLevel(gPointSampler, float3(uv, gArrayIndex), 0).x;
+            psOut.distMoments.x += rayProbeDist * distWeight;
+            psOut.distMoments.y += rayProbeDist * rayProbeDist * distWeight;
             distWeightSum += distWeight;
         }
     }
@@ -97,7 +99,9 @@ PsOut PSMain(VsOut pIn) : SV_TARGET0
         psOut.irradiance.xyz += radiance;
 
         float distWeight = pow(max(0, dot(Wi, N)), gDepthSharpness);
-        psOut.distMoments.x += gDistanceTex.SampleLevel(gPointSampler, float3(uv, gArrayIndex), 0).x * distWeight;
+        float rayProbeDist = gDistanceTex.SampleLevel(gPointSampler, float3(uv, gArrayIndex), 0).x;
+        psOut.distMoments.x += rayProbeDist * distWeight;
+        psOut.distMoments.y += rayProbeDist * rayProbeDist * distWeight;
         distWeightSum += distWeight;
     }
     // normalization
@@ -106,7 +110,7 @@ PsOut PSMain(VsOut pIn) : SV_TARGET0
 #endif
 
     psOut.distMoments.x /= distWeightSum;
-    psOut.distMoments.y = psOut.distMoments.x * psOut.distMoments.x;
+    psOut.distMoments.y /= distWeightSum;
 
     return psOut;
 }
